@@ -1,0 +1,142 @@
+# © 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+FROM ubuntu:22.04
+
+RUN apt-get update
+
+ARG DEBIAN_FRONTEND=noninteractive
+ENV TZ=America/Los_Angeles
+
+# These defaults below are overridden by DOCKER_OPTIONS
+ARG USER=test
+ARG UID=50000
+ARG GID=200
+
+# Setup the user with default docker password (change if required)
+RUN groupadd -g "$GID" "$USER" && \
+	useradd -m -u "$UID" -g "$GID" -s /bin/bash "$USER" && \
+	echo "$USER:1234" | chpasswd && adduser "$USER" sudo
+
+RUN apt-get install -y \
+    software-properties-common \
+    build-essential \
+    tzdata \
+    python3 \
+    python3-pip \
+    sudo \
+    git \
+    make \
+    gcc \
+    g++ \
+    ninja-build \
+    gcc-aarch64-linux-gnu \
+    g++-aarch64-linux-gnu \
+    cpio \
+    device-tree-compiler \
+    wget \
+    lsb-release \
+# QEMU dependencies
+    libglib2.0-dev \
+    libfdt-dev \
+    libpixman-1-dev \
+    zlib1g-dev \
+# gdb 9.2 dependencies
+    libreadline-dev \
+    texinfo \
+    libexpat1-dev \
+    libmpfr-dev \
+# Linux dependencies
+    bc \
+    libssl-dev \
+    flex \
+    bison \
+# Toolchain dependencies
+    libz3-dev \
+    cmake \
+    vim \
+    scons \
+    gdb-multiarch \
+    telnet \
+# Repos dependencies
+    python3-venv
+
+ENV HOME="/home/$USER"
+RUN mkdir -p  "${HOME}" && \
+    chown -R $USER:$USER "${HOME}"
+
+ENV BASE_DIR="${HOME}"
+ENV TOOLS_DIR="${BASE_DIR}/tools"
+ENV LIB_DIR="${BASE_DIR}/lib"
+ENV LINUX_DIR="${BASE_DIR}/linux"
+ENV LLVM="/usr/local/llvm"
+ENV QEMU_INSTALL_DIR="${TOOLS_DIR}/qemu"
+ENV QEMU_IMGS_DIR="${QEMU_INSTALL_DIR}/imgs"
+ENV QEMU="${QEMU_INSTALL_DIR}/bin/qemu-system-aarch64"
+ENV LOCAL_SYSROOT="${LIB_DIR}/app-sysroot"
+
+RUN mkdir -p ${BASE_DIR}/utils ${TOOLS_DIR}/src ${BASE_DIR}/hyp && touch ${TOOLS_DIR}/.tools-env
+
+# Get a copy of the gunyah support scripts repo
+WORKDIR ${BASE_DIR}/utils
+RUN git clone https://github.com/quic/gunyah-support-scripts.git -b dev/docker-simplified-updates
+RUN cp -r gunyah-support-scripts/scripts/utils/* ./
+
+WORKDIR ${BASE_DIR}
+
+# Copy files from host machine.
+# uncomment if you want to override files from the repo above
+#COPY --chown=$USER:$USER ./utils  "${BASE_DIR}/utils"
+
+# Build LLVM for aarch64 target with musl libc
+RUN ${BASE_DIR}/utils/clone-llvm.sh
+RUN ${BASE_DIR}/utils/build-llvm.sh
+
+# Add LLVM install path to search path
+ENV PATH="${PATH}:${LLVM}/bin:${BASE_DIR}/utils"
+
+## Since all files/dirs created so far are owned by root, change the permissions/owner
+RUN touch "${HOME}/.bashrc" && \
+    chown -R $USER:$USER "${BASE_DIR}"
+
+# Switch to user account
+USER "$USER"
+
+# Prepare Python virtual env
+RUN ${BASE_DIR}/utils/build-py-vdev.sh
+
+# Build qemu aarch64 simulator
+RUN ${BASE_DIR}/utils/clone-qemu.sh
+RUN ${BASE_DIR}/utils/build-qemu.sh
+
+# Build apps-sysroot
+RUN ${BASE_DIR}/utils/clone-qcbor-dtc.sh
+RUN ${BASE_DIR}/utils/build-sysroot.sh
+
+## Update scripts (if docker is using cached images) or override build
+#RUN cd ${BASE_DIR}/utils/gunyah-support-scripts && git pull --ff
+#RUN cp -r ${BASE_DIR}/utils/gunyah-support-scripts/scripts/utils/* ${BASE_DIR}/utils/
+
+# Build upstream linux and ramdisk
+RUN ${BASE_DIR}/utils/clone-linux.sh
+RUN ${BASE_DIR}/utils/build-linux.sh
+RUN ${BASE_DIR}/utils/build-ramdisk.sh
+
+## Copy files to useful folders
+RUN cp ${BASE_DIR}/utils/kern-test.sh ${TOOLS_DIR}/qemu/  && \
+    cp ${BASE_DIR}/utils/run-qemu.sh  ${TOOLS_DIR}/qemu/  && \
+    cp ${BASE_DIR}/utils/build-linux.sh  ${BASE_DIR}/linux/ && \
+    cp ${BASE_DIR}/utils/clone-gunyah.sh  ${BASE_DIR}/hyp/  && \
+    cp ${BASE_DIR}/utils/build-gunyah.sh  ${BASE_DIR}/hyp/  && \
+    cp ${BASE_DIR}/utils/gdb-start.sh  ${BASE_DIR}/hyp/
+
+## Add any scripts generated env updates to .bashrc
+RUN echo "" >> "${HOME}/.bashrc" && \
+    cat ${TOOLS_DIR}/.tools-env >> "${HOME}/.bashrc"
+
+## Add any .bashrc user customizations to .bashrc
+COPY bashrc-extn .
+RUN cat bashrc-extn >> "${HOME}/.bashrc"  &&  rm -f bashrc-extn
+
+CMD /bin/bash

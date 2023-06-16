@@ -1,0 +1,473 @@
+diff --git a/Makefile.hyp b/Makefile.hyp
+new file mode 100644
+index 0000000..14c2111
+--- /dev/null
++++ b/Makefile.hyp
+@@ -0,0 +1,64 @@
++QCBOR_INC_PATH = inc
++SYSROOT_INC_PATH = $(LOCAL_SYSROOT)/include
++
++ifneq ($(wildcard $(QCBOR_INC_PATH)),)
++    BUILD_INC_PATH = $(QCBOR_INC_PATH)
++    LIB_INSTALL_PATH = lib
++    #$(info From QCBOR sources folder)
++else
++    BUILD_INC_PATH = $(SYSROOT_INC_PATH)
++    LIB_INSTALL_PATH = ../../lib
++    #$(info From sysroot sources folder)
++endif
++
++CC = ${LLVM}/bin/clang
++SYSROOT_SRC_PATH = src/qcbor
++AR = ${LLVM}/bin/llvm-ar
++
++HDR_FILES = qcbor/qcbor.h \
++	    qcbor/qcbor_common.h \
++	    qcbor/qcbor_decode.h \
++	    qcbor/qcbor_private.h \
++	    qcbor/qcbor_spiffy_decode.h \
++	    qcbor/UsefulBuf.h \
++	    UsefulBuf.h
++
++all: $(LIB_INSTALL_PATH)/libqcbor.a
++
++CFLAGS = -target aarch64-linux-gnu -Os -march=armv8-a -mcpu=cortex-a72
++CFLAGS += -g -gdwarf-4 -std=gnu18 -Weverything -Werror
++CFLAGS += -Wno-covered-switch-default -Wno-c++98-compat -Wno-c++-compat
++CFLAGS += -Wno-gcc-compat -Wno-undef -Wno-declaration-after-statement
++CFLAGS += -ffunction-sections -fdata-sections -fpie
++CFLAGS += -DQCBOR_DISABLE_INDEFINITE_LENGTH_ARRAYS
++CFLAGS += -c -I $(BUILD_INC_PATH)
++
++QCBOR_OBJS = src/UsefulBuf.o src/qcbor_decode.o
++
++$(LIB_INSTALL_PATH)/libqcbor.a: $(QCBOR_OBJS)
++	@mkdir -p $(LIB_INSTALL_PATH)
++	$(AR) -rc $@ $^
++	@echo "Installed QCBOR decode lib at $(PWD)/$(LIB_INSTALL_PATH)"
++
++src/UsefulBuf.o: $(BUILD_INC_PATH)/qcbor/UsefulBuf.h
++src/qcbor_decode.o: $(foreach sf, $(HDR_FILES), $(BUILD_INC_PATH)/$(sf))
++
++# First create a sysroot qcbor decoder source copy from original QCBOR repo
++#  Then build in sysroot folder
++sysroot_decoder_lib:
++	@echo -e "Copying QCBOR decoder sources to sysroot folder: $(LOCAL_SYSROOT)/$(SYSROOT_SRC_PATH)"
++	@$(foreach sf, $(HDR_FILES), \
++	    mkdir -p $(dir $(SYSROOT_INC_PATH)/$(sf)); \
++	    cp $(QCBOR_INC_PATH)/$(sf) $(SYSROOT_INC_PATH)/$(sf); \
++	)
++	@$(foreach sf, $(QCBOR_OBJS:.o=.c), \
++	    mkdir -p $(dir $(LOCAL_SYSROOT)/$(SYSROOT_SRC_PATH)/$(sf)) ; \
++	    cp $(sf) $(LOCAL_SYSROOT)/$(SYSROOT_SRC_PATH)/$(sf); \
++	)
++	@cp ./Makefile.hyp  $(LOCAL_SYSROOT)/$(SYSROOT_SRC_PATH)/Makefile
++	@echo -e "Copying completed, building the lib..."
++	@cd $(LOCAL_SYSROOT)/$(SYSROOT_SRC_PATH) ; make
++
++
++clean:
++	rm -f $(QCBOR_OBJS) $(LIB_INSTALL_PATH)/libqcbor.a
+diff --git a/inc/qcbor/UsefulBuf.h b/inc/qcbor/UsefulBuf.h
+index aa24507..ddd20e0 100644
+--- a/inc/qcbor/UsefulBuf.h
++++ b/inc/qcbor/UsefulBuf.h
+@@ -71,8 +71,8 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ 
+  =============================================================================*/
+ 
+-#ifndef _UsefulBuf_h
+-#define _UsefulBuf_h
++#ifndef UsefulBuf_h_
++#define UsefulBuf_h_
+ 
+ 
+ /*
+@@ -832,6 +832,7 @@ typedef struct useful_out_buf {
+    uint16_t   magic;    /* Used to detect corruption and lack
+                          * of initialization */
+    uint8_t    err;
++   uint8_t    padding_[5]; // explicit padding
+ } UsefulOutBuf;
+ 
+ 
+@@ -1416,6 +1417,7 @@ typedef struct useful_input_buf {
+    size_t     cursor; /* Current offset in data being parse */
+    uint16_t   magic;  /* Check for corrupted or uninitialized UsefulInputBuf */
+    uint8_t    err;    /* Set request goes off end or magic number is bad */
++   uint8_t    padding_[5]; // explicit padding
+ } UsefulInputBuf;
+ 
+ #define UIB_MAGIC (0xB00F)
+@@ -2459,6 +2461,4 @@ static inline void UsefulInputBuf_SetBufferLength(UsefulInputBuf *pMe, size_t uN
+ }
+ #endif
+ 
+-#endif  /* _UsefulBuf_h */
+-
+-
++#endif  /* UsefulBuf_h_ */
+diff --git a/inc/qcbor/qcbor.h b/inc/qcbor/qcbor.h
+index 7b8096b..e4aea87 100644
+--- a/inc/qcbor/qcbor.h
++++ b/inc/qcbor/qcbor.h
+@@ -37,5 +37,17 @@
+  * into four include files).
+  */
+ 
+-#include "qcbor_encode.h"
++#if defined(ARCH_ENDIAN_LITTLE) && ARCH_ENDIAN_LITTLE
++#define USEFULBUF_CONFIG_LITTLE_ENDIAN 1
++#elif defined(ARCH_ENDIAN_BIG) && ARCH_ENDIAN_BIG
++#define USEFULBUF_CONFIG_BIG_ENDIAN 1
++#endif
++
++//#include "qcbor_encode.h"
+ #include "qcbor_decode.h"
++
++typedef UsefulBuf  useful_buff_t;
++typedef UsefulBufC const_useful_buff_t;
++
++typedef QCBORDecodeContext qcbor_dec_ctxt_t;
++typedef QCBORItem	   qcbor_item_t;
+diff --git a/inc/qcbor/qcbor_common.h b/inc/qcbor/qcbor_common.h
+index 127537d..b2692e5 100644
+--- a/inc/qcbor/qcbor_common.h
++++ b/inc/qcbor/qcbor_common.h
+@@ -62,8 +62,12 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  some aspects of tag handling that are different. This define can be
+  used handle these variances.
+ */
+-#define QCBOR_SPIFFY_DECODE
++// Disabled for Gunyah usage
++// #define QCBOR_SPIFFY_DECODE
+ 
++#define QCBOR_CONFIG_DISABLE_EXP_AND_MANTISSA
++#define QCBOR_DISABLE_TAGS
++#define USEFULBUF_DISABLE_ALL_FLOAT
+ 
+ /* It was originally defined as QCBOR_CONFIG_DISABLE_EXP_AND_MANTISSA,
+  * but this is incosistent with all the other QCBOR_DISABLE_
+diff --git a/inc/qcbor/qcbor_decode.h b/inc/qcbor/qcbor_decode.h
+index bf30e6d..a67cc40 100644
+--- a/inc/qcbor/qcbor_decode.h
++++ b/inc/qcbor/qcbor_decode.h
+@@ -48,6 +48,9 @@ extern "C" {
+ #endif
+ #endif
+ 
++#pragma GCC diagnostic push
++#pragma GCC diagnostic ignored "-Wreserved-identifier"
++
+ 
+ /**
+  * @file qcbor_decode.h
+@@ -392,6 +395,7 @@ typedef struct _QCBORItem {
+     * up by calling QCBORDecode_SetMemPool() or
+     * QCBORDecode_SetUpAllocator(). */
+    uint8_t  uLabelAlloc;
++   uint8_t  padding_[2]; // explicit padding
+ 
+    /** The union holding the item's value. Select union member based
+     *  on @c uDataType. */
+@@ -1327,6 +1331,7 @@ static inline int QCBOR_Int64ToUInt64(int64_t src, uint64_t *dest)
+  */
+ typedef struct {
+    uint8_t         uNumTags;
++   uint8_t         padding_[7]; // explicit padding
+    const uint64_t *puTags;
+ } QCBORTagListIn;
+ 
+@@ -1347,6 +1352,7 @@ typedef struct {
+ typedef struct {
+    uint8_t   uNumUsed;
+    uint8_t   uNumAllocated;
++   uint8_t   padding_[6]; // explicit padding
+    uint64_t *puTags;
+ } QCBORTagListOut;
+ 
+@@ -1479,4 +1485,5 @@ static inline bool QCBORDecode_IsUnrecoverableError(QCBORError uErr)
+ }
+ #endif
+ 
++#pragma GCC diagnostic pop
+ #endif /* qcbor_decode_h */
+diff --git a/inc/qcbor/qcbor_private.h b/inc/qcbor/qcbor_private.h
+index 9a2a720..acefe18 100644
+--- a/inc/qcbor/qcbor_private.h
++++ b/inc/qcbor/qcbor_private.h
+@@ -47,6 +47,8 @@ extern "C" {
+ #endif
+ #endif
+ 
++#pragma GCC diagnostic push
++#pragma GCC diagnostic ignored "-Wreserved-identifier"
+ 
+ /*
+  The maxium nesting of arrays and maps when encoding or decoding.
+@@ -147,6 +149,7 @@ typedef struct __QCBORTrackNesting {
+       uint16_t  uCount;   // Number of items in the arrary or map; counts items
+                           // in a map, not pairs of items
+       uint8_t   uMajorType; // Indicates if item is a map or an array
++      uint8_t   padding_[1]; // explicit padding
+    } pArrays[QCBOR_MAX_ARRAY_NESTING1+1], // stored state for the nesting levels
+    *pCurrentNesting; // the current nesting level
+ } QCBORTrackNesting;
+@@ -225,6 +228,7 @@ typedef struct __QCBORDecodeNesting  {
+        padding for alignment will be saved.
+        */
+       uint8_t  uLevelType;
++      uint8_t  padding_[3]; // explicit padding
+       union {
+          struct {
+ #define QCBOR_COUNT_INDICATES_INDEFINITE_LENGTH UINT16_MAX
+@@ -307,6 +311,7 @@ struct _QCBORDecodeContext {
+    uint8_t  uDecodeMode;
+    uint8_t  bStringAllocateAll;
+    uint8_t  uLastError;  // QCBORError stuffed into a uint8_t
++   uint8_t  padding_[1]; // explicit padding
+ 
+    /* See MapTagNumber() for description of how tags are mapped. */
+    uint64_t auMappedTags[QCBOR_NUM_MAPPED_TAGS];
+@@ -348,4 +353,6 @@ struct _QCBORDecodeContext {
+ }
+ #endif
+ 
++#pragma GCC diagnostic pop
++
+ #endif /* qcbor_private_h */
+diff --git a/inc/qcbor/qcbor_spiffy_decode.h b/inc/qcbor/qcbor_spiffy_decode.h
+index 0faddc3..7f306df 100644
+--- a/inc/qcbor/qcbor_spiffy_decode.h
++++ b/inc/qcbor/qcbor_spiffy_decode.h
+@@ -232,7 +232,7 @@ static void QCBORDecode_GetInt64InMapSZ(QCBORDecodeContext *pCtx,
+  Please see @ref Decode-Errors-Overview "Decode Errors Overview".
+ 
+  If the CBOR data type can never be convered by this function or the
+- conversion was not selected in @c uConversionTypes @ref
++ conversion was not selected in @c uConversionTypes
+  @ref QCBOR_ERR_UNEXPECTED_TYPE is set.
+ 
+  When converting floating-point values, the integer is rounded to the
+@@ -2469,6 +2469,9 @@ QCBORDecode_GetRegexInMapSZ(QCBORDecodeContext *pMe,
+    QCBORDecode_GetTaggedStringInMapSZ(pMe, szLabel, TagSpec, pRegex);
+ }
+ 
++// Casting function returning enum QCBORError
++#pragma clang diagnostic push
++#pragma clang diagnostic ignored "-Wbad-function-cast"
+ 
+ static inline void
+ QCBORDecode_GetMIMEMessage(QCBORDecodeContext *pMe,
+@@ -2530,6 +2533,7 @@ QCBORDecode_GetMIMEMessageInMapSZ(QCBORDecodeContext *pMe,
+    }
+ }
+ 
++#pragma clang diagnostic pop
+ 
+ static inline void
+ QCBORDecode_GetBinaryUUID(QCBORDecodeContext *pMe,
+diff --git a/src/qcbor_decode.c b/src/qcbor_decode.c
+index 8a547ee..9f49b58 100644
+--- a/src/qcbor_decode.c
++++ b/src/qcbor_decode.c
+@@ -47,9 +47,6 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ 
+ 
+ 
+-#define SIZEOF_C_ARRAY(array,type) (sizeof(array)/sizeof(type))
+-
+-
+ 
+ 
+ static inline bool
+@@ -385,7 +382,7 @@ DecodeNesting_DescendMapOrArray(QCBORDecodeNesting *pNesting,
+    DecodeNesting_ClearBoundedMode(pNesting);
+ 
+ Done:
+-   return uError;;
++   return uError;
+ }
+ 
+ 
+@@ -435,7 +432,7 @@ DecodeNesting_DescendIntoBstrWrapped(QCBORDecodeNesting *pNesting,
+    pNesting->pCurrentBounded = pNesting->pCurrent;
+ 
+ Done:
+-   return uError;;
++   return uError;
+ }
+ 
+ 
+@@ -656,6 +653,7 @@ void QCBORDecode_SetCallerConfiguredTagList(QCBORDecodeContext   *pMe,
+  * analyzers.
+  */
+ 
++#pragma clang diagnostic ignored "-Wdocumentation"
+ 
+ /**
+  * @brief Decode the CBOR head, the type and argument.
+@@ -920,7 +918,7 @@ DecodeType7(int nAdditionalInfo, uint64_t uArgument, QCBORItem *pDecodedItem)
+             goto Done;
+          }
+          /* FALLTHROUGH */
+-
++	 __attribute__((fallthrough));
+       default: /* 0-19 */
+          pDecodedItem->uDataType   = QCBOR_TYPE_UKNOWN_SIMPLE;
+          /* DecodeHead() will make uArgument equal to
+@@ -1013,7 +1011,7 @@ Done:
+  * @brief Map the CBOR major types for strings to the QCBOR types.
+  *
+  * @param[in] nCBORMajorType  The CBOR major type to convert.
+- * @retturns QCBOR type number.
++ * @returns QCBOR type number.
+  *
+  * This only works for the two string types.
+  */
+@@ -1035,7 +1033,7 @@ static inline uint8_t ConvertStringMajorTypes(int nCBORMajorType)
+  * @brief Map the CBOR major types  for arrays/maps  to the QCBOR types.
+  *
+  * @param[in] nCBORMajorType  The CBOR major type to convert.
+- * @retturns QCBOR type number.
++ * @returns QCBOR type number.
+  *
+  * This only works for the two aggregate types.
+  */
+@@ -1948,7 +1946,6 @@ static QCBORError DecodeDateEpoch(QCBORItem *pDecodedItem)
+           */
+          uReturn = QCBOR_ERR_DATE_OVERFLOW;
+          goto Done;
+-         break;
+ 
+       case QCBOR_TYPE_DOUBLE:
+       case QCBOR_TYPE_FLOAT:
+@@ -1993,6 +1990,7 @@ static QCBORError DecodeDateEpoch(QCBORItem *pDecodedItem)
+          pDecodedItem->val.epochDate.nSeconds = (int64_t)d;
+          pDecodedItem->val.epochDate.fSecondsFraction =
+                            d - (double)pDecodedItem->val.epochDate.nSeconds;
++	 break;
+       }
+ #else /* QCBOR_DISABLE_FLOAT_HW_USE */
+ 
+@@ -2000,7 +1998,6 @@ static QCBORError DecodeDateEpoch(QCBORItem *pDecodedItem)
+          goto Done;
+ 
+ #endif /* QCBOR_DISABLE_FLOAT_HW_USE */
+-         break;
+ 
+       default:
+          /* It's the arrays and maps that are unrecoverable because
+@@ -2047,7 +2044,6 @@ static QCBORError DecodeDaysEpoch(QCBORItem *pDecodedItem)
+           */
+          uReturn = QCBOR_ERR_DATE_OVERFLOW;
+          goto Done;
+-         break;
+ 
+       default:
+          /* It's the arrays and maps that are unrecoverable because
+@@ -2056,7 +2052,6 @@ static QCBORError DecodeDaysEpoch(QCBORItem *pDecodedItem)
+           * recoverable for non-arrays and maps like strings. */
+          uReturn = QCBOR_ERR_UNRECOVERABLE_TAG_CONTENT;
+          goto Done;
+-         break;
+    }
+ 
+    pDecodedItem->uDataType = QCBOR_TYPE_DAYS_EPOCH;
+@@ -2229,6 +2224,9 @@ static inline QCBORError DecodeMIME(QCBORItem *pDecodedItem)
+ }
+ #endif /* QCBOR_DISABLE_UNCOMMON_TAGS */
+ 
++// Missing padding
++#pragma clang diagnostic push
++#pragma clang diagnostic ignored "-Wpadded"
+ /**
+  * Table of CBOR tags whose content is either a text string or a byte
+  * string. The table maps the CBOR tag to the QCBOR type. The high-bit
+@@ -2240,6 +2238,8 @@ struct StringTagMapEntry {
+    uint8_t  uQCBORtype;
+ };
+ 
++#pragma clang diagnostic pop
++
+ #define IS_BYTE_STRING_BIT 0x80
+ #define QCBOR_TYPE_MASK   ~IS_BYTE_STRING_BIT
+ 
+@@ -2470,6 +2470,9 @@ QCBORDecode_PeekNext(QCBORDecodeContext *pMe, QCBORItem *pDecodedItem)
+    return uErr;
+ }
+ 
++// Casting function returning enum QCBORError
++#pragma clang diagnostic push
++#pragma clang diagnostic ignored "-Wbad-function-cast"
+ 
+ /*
+  * Public function, see header qcbor/qcbor_decode.h file
+@@ -4742,10 +4745,10 @@ ConvertInt64(const QCBORItem *pItem, uint32_t uConvertTypes, int64_t *pnValue)
+          } else {
+             return  QCBOR_ERR_UNEXPECTED_TYPE;
+          }
++         break;
+ #else
+          return QCBOR_ERR_HW_FLOAT_DISABLED;
+ #endif /* QCBOR_DISABLE_FLOAT_HW_USE */
+-         break;
+ 
+       case QCBOR_TYPE_INT64:
+          if(uConvertTypes & QCBOR_CONVERT_TYPE_XINT64) {
+@@ -4852,7 +4855,7 @@ Int64ConvertAll(const QCBORItem *pItem, uint32_t uConvertTypes, int64_t *pnValue
+          } else {
+             return QCBOR_ERR_UNEXPECTED_TYPE;
+          }
+-         break;
++//         break;
+ 
+       case QCBOR_TYPE_NEGBIGNUM:
+          if(uConvertTypes & QCBOR_CONVERT_TYPE_BIG_NUM) {
+@@ -4860,7 +4863,7 @@ Int64ConvertAll(const QCBORItem *pItem, uint32_t uConvertTypes, int64_t *pnValue
+          } else {
+             return QCBOR_ERR_UNEXPECTED_TYPE;
+          }
+-         break;
++//         break;
+ 
+ #ifndef QCBOR_DISABLE_EXP_AND_MANTISSA
+       case QCBOR_TYPE_DECIMAL_FRACTION:
+@@ -5093,10 +5096,10 @@ static QCBORError ConvertUInt64(const QCBORItem *pItem, uint32_t uConvertTypes,
+          } else {
+             return QCBOR_ERR_UNEXPECTED_TYPE;
+          }
++         break;
+ #else
+          return QCBOR_ERR_HW_FLOAT_DISABLED;
+ #endif /* QCBOR_DISABLE_FLOAT_HW_USE */
+-         break;
+ 
+       case QCBOR_TYPE_INT64:
+          if(uConvertTypes & QCBOR_CONVERT_TYPE_XINT64) {
+@@ -5197,7 +5200,7 @@ UInt64ConvertAll(const QCBORItem *pItem, uint32_t uConvertTypes, uint64_t *puVal
+          } else {
+             return QCBOR_ERR_UNEXPECTED_TYPE;
+          }
+-         break;
++//         break;
+ 
+       case QCBOR_TYPE_NEGBIGNUM:
+          if(uConvertTypes & QCBOR_CONVERT_TYPE_BIG_NUM) {
+@@ -5205,7 +5208,7 @@ UInt64ConvertAll(const QCBORItem *pItem, uint32_t uConvertTypes, uint64_t *puVal
+          } else {
+             return QCBOR_ERR_UNEXPECTED_TYPE;
+          }
+-         break;
++//         break;
+ 
+ #ifndef QCBOR_DISABLE_EXP_AND_MANTISSA
+ 
+@@ -5618,6 +5621,7 @@ DoubleConvertAll(const QCBORItem *pItem, uint32_t uConvertTypes, double *pdValue
+ 
+ }
+ 
++#pragma clang diagnostic pop
+ 
+ /*
+    Public function, see header qcbor/qcbor_decode.h file

@@ -1,0 +1,50 @@
+#!/bin/bash
+
+# © 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+set -e
+
+# This file is sourced and run from within docker shell environment
+# Can be used for any local or user customization of the environment
+
+# Host folder mount point in docker env
+HOST_SHARED_DIR=~/share
+
+# Where Gunyah hypervisor builds located on host machine
+HOST_GUNYAH_ROOT_PATH="gunyah-dev"
+
+# Set this env val path to where linux dependency images are located
+HOST_LINUX_IMAGES_FOLDER="host-linux-imgs"
+
+# Set to a path where qemu can load the hyp image from, typically
+# output folder in the hyp root or could be on the host machine
+GUNYAH_IMG_PATH="${HOST_GUNYAH_ROOT_PATH}/qemu"
+
+if [[ -z "${QEMU_IMGS_DIR}" ]] ; then
+    exit 0
+fi
+
+FILES_TO_COPY=""
+FILES_TO_COPY+="${HOST_SHARED_DIR}/${GUNYAH_IMG_PATH}/hypvm.elf "
+FILES_TO_COPY+="${HOST_SHARED_DIR}/${HOST_LINUX_IMAGES_FOLDER}/Image "
+FILES_TO_COPY+="${HOST_SHARED_DIR}/${HOST_LINUX_IMAGES_FOLDER}/initramfs.img "
+FILES_TO_COPY+="${HOST_SHARED_DIR}/${HOST_LINUX_IMAGES_FOLDER}/rootfs.img "
+
+# Copy the images to docker env from host
+echo "Copying files to docker images folder"
+for HOST_FILE in ${FILES_TO_COPY}
+do
+    if [[ -f ${HOST_FILE} ]] ; then
+	    echo "${HOST_FILE}"
+	    cp -f ${HOST_FILE} ${QEMU_IMGS_DIR}
+    fi
+done
+
+
+# Any startup commands to execute automatically on launching docker, helps with automation
+#cd ./tools/qemu
+#./run-qemu.sh dtb
+#./run-qemu.sh
+

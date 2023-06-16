@@ -1,0 +1,15 @@
+# © 2022 - 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+# alias c='clear'
+# alias l='ls -la'
+
+# If any custom adjustments needed in docker environment runtime without
+# generating new image, add the following file in the shared host folder
+# This script is sourced in docker shell environment
+if [[ -f ~/share/.dockr-env-rc ]]; then
+	echo "Applying .dockr-env-rc customizations.."
+	source ~/share/.dockr-env-rc
+fi
+
