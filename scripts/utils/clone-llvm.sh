@@ -43,7 +43,7 @@ echo -e "\nCloning MUSL:"
 git clone \
   --single-branch --depth=1 --progress -c advice.detachedHead=false -b \
     v1.1.24 \
-    git://git.musl-libc.org/musl  || {
+    https://git.musl-libc.org/git/musl  || {
 	echo "Unable to clone Musl"
 	exit 4
     }
