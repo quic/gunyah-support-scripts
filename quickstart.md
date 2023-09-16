@@ -199,7 +199,7 @@ This example assumes that we are building the sources cloned in the shared folde
 To build the Gunyah image for the ```qemu``` target:
 
 ```bash
-cd ~/shared
+cd ~/share
 build-gunyah.sh qemu
 ```
 
@@ -252,6 +252,14 @@ bin      etc      proc     sbin     usr
 dev      linuxrc  root     sys
 / #
 ```
+
+--------
+
+## SVM booting Linux
+
+This page describes how to prepare the host environment and the guest environment to showcase the capability of SVM booting Linux HLOS.
+
+[Linux booting on SVM in Gunyah](svm_booting_linux.md)
 
 --------
 

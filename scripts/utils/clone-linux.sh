@@ -30,14 +30,53 @@ mkdir -p ${LINUX_DIR}/src
 cd ${LINUX_DIR}/src
 
 # LINUX
-echo -e "\nCloning Linux v6.1:"
+LINUX_VER="v6.5"
+echo -e "\nCloning Linux ${LINUX_VER}:"
 git clone \
-    --single-branch --depth=1 --progress -c advice.detachedHead=false \
-    -b v6.1  \
+    --depth=1 --progress -c advice.detachedHead=false \
+    -b ${LINUX_VER}  \
     https://github.com/torvalds/linux.git   || {
 	echo "Unable to clone Linux"
 	exit 1
     }
+
+# Enable Gunyah drivers in linux, static linking for now
+echo "Applying gunyah drivers patch to linux"
+
+# Install functional b4 first
+# Instructions from https://b4.docs.kernel.org/en/latest/installing.html
+echo "Installing b4 to download patches"
+
+# Set git global config for b4 to work
+git config --global user.email "$USER@test.com"
+git config --global user.name "$USER"
+git config --global color.ui auto
+
+# Now get b4 installed to local folder
+mkdir -p ${LINUX_DIR}/tools
+cd ${LINUX_DIR}/tools
+git clone https://git.kernel.org/pub/scm/utils/b4/b4.git b4
+cd b4
+git switch stable-0.9.y
+git submodule update --init
+pip install -r requirements.txt
+
+echo "Installed b4 to ${LINUX_DIR}/tools/b4"
+
+cd ${LINUX_DIR}/src/linux
+
+${LINUX_DIR}/tools/b4/b4.sh shazam https://lore.kernel.org/all/20230613172054.3959700-1-quic_eberman@quicinc.com/
+echo "Applied gunyah drivers patch successfully"
+
+echo "Generate gunyah.config"
+echo "CONFIG_VIRT_DRIVERS=y" > ./arch/arm64/configs/gunyah.config
+echo "CONFIG_GUNYAH=y" >> ./arch/arm64/configs/gunyah.config
+echo "CONFIG_GUNYAH_VCPU=y" >> ./arch/arm64/configs/gunyah.config
+echo "CONFIG_GUNYAH_IRQFD=y" >> ./arch/arm64/configs/gunyah.config
+echo "CONFIG_GUNYAH_IOEVENTFD=y" >> ./arch/arm64/configs/gunyah.config
+echo "Created gunyah.config"
+
+cd ${LINUX_DIR}
 
 # RAMDISK
 echo -e "\nDownloading Busybox:"

@@ -7,7 +7,11 @@ FROM ubuntu:22.04
 RUN apt-get update
 
 ARG DEBIAN_FRONTEND=noninteractive
-ENV TZ=America/Los_Angeles
+ENV TZ=America/Los_Angeles \
+    LANG=en_US.UTF-8 \
+    LANGUAGE=en_US:en \
+    LC_ALL=en_US.UTF-8
+
 
 # These defaults below are overridden by DOCKER_OPTIONS
 ARG USER=test
@@ -59,8 +63,17 @@ RUN apt-get install -y \
     scons \
     gdb-multiarch \
     telnet \
+    podman \
+    curl \
+    fdisk \
+    locales \
+    chrpath diffstat file gawk lz4 zstd \
 # Repos dependencies
     python3-venv
+
+RUN locale-gen en_US.UTF-8
+
+FROM stock-base AS updated-base
 
 ENV HOME="/home/$USER"
 RUN mkdir -p  "${HOME}" && \
@@ -79,22 +92,26 @@ ENV LOCAL_SYSROOT="${LIB_DIR}/app-sysroot"
 RUN mkdir -p ${BASE_DIR}/utils ${TOOLS_DIR}/src ${BASE_DIR}/hyp && touch ${TOOLS_DIR}/.tools-env
 
 # Get a copy of the gunyah support scripts repo
-WORKDIR ${BASE_DIR}/utils
-RUN git clone https://github.com/quic/gunyah-support-scripts.git
-RUN cp -r gunyah-support-scripts/scripts/utils/* ./
+#WORKDIR ${BASE_DIR}/utils
+#RUN git clone https://github.com/quic/gunyah-support-scripts.git
+#RUN cp -r gunyah-support-scripts/scripts/utils/* ./ && \
+#	chown -R $USER:$USER ./* && \
+#	chmod +x ./*
 
 WORKDIR ${BASE_DIR}
 
 # Copy files from host machine.
 # uncomment if you want to override files from the repo above
-#COPY --chown=$USER:$USER ./utils  "${BASE_DIR}/utils"
+COPY --chown=$USER:$USER ./utils  "${BASE_DIR}/utils"
 
 # Build LLVM for aarch64 target with musl libc
 RUN ${BASE_DIR}/utils/clone-llvm.sh
 RUN ${BASE_DIR}/utils/build-llvm.sh
 
 # Add LLVM install path to search path
-ENV PATH="${PATH}:${LLVM}/bin:${BASE_DIR}/utils"
+ENV PATH="${PATH}:${LLVM}/bin:${BASE_DIR}/utils:${BASE_DIR}/tools/qemu/bin"
+
+FROM updated-base AS llvm-tools-base
 
 ## Since all files/dirs created so far are owned by root, change the permissions/owner
 RUN touch "${HOME}/.bashrc" && \
@@ -103,12 +120,12 @@ RUN touch "${HOME}/.bashrc" && \
 # Switch to user account
 USER "$USER"
 
-# Prepare Python virtual env
-RUN ${BASE_DIR}/utils/build-py-vdev.sh
-
 # Build qemu aarch64 simulator
 RUN ${BASE_DIR}/utils/clone-qemu.sh
 RUN ${BASE_DIR}/utils/build-qemu.sh
+
+# Prepare Python virtual env
+RUN ${BASE_DIR}/utils/build-py-vdev.sh
 
 # Build apps-sysroot
 RUN ${BASE_DIR}/utils/clone-qcbor-dtc.sh
@@ -118,10 +135,15 @@ RUN ${BASE_DIR}/utils/build-sysroot.sh
 #RUN cd ${BASE_DIR}/utils/gunyah-support-scripts && git pull --ff
 #RUN cp -r ${BASE_DIR}/utils/gunyah-support-scripts/scripts/utils/* ${BASE_DIR}/utils/
 
+FROM llvm-tools-base AS libs-base
+
 # Build upstream linux and ramdisk
+RUN mkdir ${BASE_DIR}/linux
 RUN ${BASE_DIR}/utils/clone-linux.sh
 RUN ${BASE_DIR}/utils/build-linux.sh
 RUN ${BASE_DIR}/utils/build-ramdisk.sh
+
+FROM libs-base AS linux-base
 
 ## Copy files to useful folders
 RUN cp ${BASE_DIR}/utils/kern-test.sh ${TOOLS_DIR}/qemu/  && \
@@ -138,5 +160,7 @@ RUN echo "" >> "${HOME}/.bashrc" && \
 ## Add any .bashrc user customizations to .bashrc
 COPY bashrc-extn .
 RUN cat bashrc-extn >> "${HOME}/.bashrc"  &&  rm -f bashrc-extn
+
+FROM linux-base AS final-image
 
 CMD /bin/bash

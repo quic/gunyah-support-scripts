@@ -10,7 +10,7 @@ CPU_CNT=$(grep -c ^processor /proc/cpuinfo)
 
 echo "Building Busybox"
 
-RAMDISK_DIR="${LINUX_DIR}/src/busybox-1.33.0"
+RAMDISK_DIR="${LINUX_DIR}/busybox-1.33.0"
 cd ${RAMDISK_DIR}
 make ARCH=arm CROSS_COMPILE=aarch64-linux-gnu- defconfig
 #make ARCH=arm CROSS_COMPILE=aarch64-linux-gnu- menuconfig
@@ -36,4 +36,5 @@ if [[ ! -z "${QEMU_IMGS_DIR}" ]]; then
     echo "Copied Linux kernel Image to ${QEMU_IMGS_DIR}"
 fi
 
+echo -e "\nRAMDISK_FILE_PATH=${RAMDISK_DIR}/initrd.img\n" >> ~/.bashrc
 

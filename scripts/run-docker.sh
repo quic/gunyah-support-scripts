@@ -31,5 +31,5 @@ if [[ -z "$DOCKER_TAG" ]]; then
     DOCKER_TAG=" hyp:dev-term "
 fi
 
-docker run -h ${DOCKER_MACHINE_NAME} -it ${PORT_MAPPINGS} -v ${HOST_TO_DOCKER_SHARED_DIR}:${HOST_SHARED_DIR} ${DOCKER_TAG}
+docker run --privileged -h ${DOCKER_MACHINE_NAME} -it ${PORT_MAPPINGS} -v ${HOST_TO_DOCKER_SHARED_DIR}:${HOST_SHARED_DIR} ${DOCKER_TAG} "$@"
 

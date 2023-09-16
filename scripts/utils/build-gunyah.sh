@@ -89,3 +89,9 @@ if [[ -f ${PLATFORM}/hypvm.elf ]]; then
 	echo "Copied hypvm.elf to ${QEMU_IMGS_DIR}/hypvm.elf"
     fi
 fi
+
+CRT_ENTP=`readelf -e -W musl-c-runtime/build/runtime | grep "Entry point address" | cut -d ':' -f 2 |  tr -d "[:space:]"`
+echo "C Runtime entry point :           ${CRT_ENTP}"
+
+RM_ENTP=`readelf -e -W resource-manager/build/qemu/debug/resource-manager | grep "Entry point address" | cut -d ':' -f 2 |  tr -d "[:space:]"`
+echo "Resource Manager entry point :    ${RM_ENTP}"
