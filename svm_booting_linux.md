@@ -52,7 +52,7 @@ cd crosvm
 ~/utils/build-crosvm.sh
 ```
 
-> NOTE: Either a newer version of the Docker or a newer ubuntu distro (22.04 and later) has been encountering the following error..!! Observation was that the build works on host machine but doesn't in docker environment or vice versa. If that's the case, try to build crosvm and rootfs disk on the host machine. Also note that the gcc cross compiler on the host machine should match the one in Docker environment.
+> NOTE: Either a newer version of the Docker or a newer ubuntu distro (22.04 and later) has been encountering the following error..!! Observation was that the build works on host machine but doesn't in docker environment or vice versa. Currently we do not have a workaround for this problem, but if an older version of ubuntu distro (20.04) is available should work fine.
 
 ```
 Trying to pull gcr.io/crosvm-infra/crosvm_dev:r0040...
@@ -224,6 +224,7 @@ Sent SIGKILL to all processes
 Requesting system poweroff
 [ 7204.608721] reboot: Power down
 ```
+> Note: Current latset version of Gunyah freezes on second time launch after SVM power off. This is working fine in the original version of gunyah before the updates, SVM relaunch feature can be verified on that original version of Gunyah/RM sources.
 
 Press ```ctrl-a and x``` to exit Qemu
 

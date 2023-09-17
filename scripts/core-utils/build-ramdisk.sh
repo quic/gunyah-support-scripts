@@ -36,5 +36,5 @@ if [[ ! -z "${QEMU_IMGS_DIR}" ]]; then
     echo "Copied Linux kernel Image to ${QEMU_IMGS_DIR}"
 fi
 
-echo -e "\nRAMDISK_FILE_PATH=${RAMDISK_DIR}/initrd.img\n" >> ~/.bashrc
+echo -e "\nexport RAMDISK_FILE_PATH=${RAMDISK_DIR}/initrd.img\n" >> ~/.bashrc
 

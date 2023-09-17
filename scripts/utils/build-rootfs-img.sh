@@ -174,7 +174,7 @@ if [[ ! -f ~/.gitconfig ]]; then
 	git config --global color.ui auto
 fi
 
-export ROOTFS_IMAGE_TO_BUILD="rpb-console-image"
+ROOTFS_IMAGE_TO_BUILD="rpb-console-image"
 export MACHINE=qemuarm64
 export DISTRO=rpb
 

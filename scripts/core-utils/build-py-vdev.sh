@@ -18,6 +18,7 @@ python3 -m venv gunyah-venv &&
     . gunyah-venv/bin/activate &&
     pip3 install --upgrade pip &&
     pip3 install wheel &&
+    pip3 install pexpect &&
     pip3 install lark_parser==0.8.9 &&
     pip3 install Cheetah3==3.2.6 &&
     pip3 install pyelftools==0.26 || {

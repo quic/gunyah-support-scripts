@@ -2,7 +2,9 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-FROM ubuntu:22.04
+# FROM ubuntu:22.04
+ARG REGISTRY
+FROM "$REGISTRY"
 
 RUN apt-get update
 
@@ -73,8 +75,6 @@ RUN apt-get install -y \
 
 RUN locale-gen en_US.UTF-8
 
-FROM stock-base AS updated-base
-
 ENV HOME="/home/$USER"
 RUN mkdir -p  "${HOME}" && \
     chown -R $USER:$USER "${HOME}"
@@ -89,66 +89,70 @@ ENV QEMU_IMGS_DIR="${QEMU_INSTALL_DIR}/imgs"
 ENV QEMU="${QEMU_INSTALL_DIR}/bin/qemu-system-aarch64"
 ENV LOCAL_SYSROOT="${LIB_DIR}/app-sysroot"
 
-RUN mkdir -p ${BASE_DIR}/utils ${TOOLS_DIR}/src ${BASE_DIR}/hyp && touch ${TOOLS_DIR}/.tools-env
+RUN mkdir -p ${BASE_DIR}/utils ${BASE_DIR}/core-utils ${TOOLS_DIR}/src ${BASE_DIR}/hyp && touch ${TOOLS_DIR}/.tools-env
 
 # Get a copy of the gunyah support scripts repo
-#WORKDIR ${BASE_DIR}/utils
+#WORKDIR ${BASE_DIR}/updates
 #RUN git clone https://github.com/quic/gunyah-support-scripts.git
-#RUN cp -r gunyah-support-scripts/scripts/utils/* ./ && \
-#	chown -R $USER:$USER ./* && \
-#	chmod +x ./*
+#RUN cp -r gunyah-support-scripts/scripts/utils/* ${BASE_DIR}/utils && \
+#	chown -R $USER:$USER ${BASE_DIR}/utils && \
+#	chmod +x ${BASE_DIR}/utils/*
+#RUN cp -r gunyah-support-scripts/scripts/core-utils/* ${BASE_DIR}/core-utils && \
+#	chown -R $USER:$USER ${BASE_DIR}/core-utils && \
+#	chmod +x ${BASE_DIR}/core-utils/*
 
 WORKDIR ${BASE_DIR}
 
-# Copy files from host machine.
-# uncomment if you want to override files from the repo above
-COPY --chown=$USER:$USER ./utils  "${BASE_DIR}/utils"
+RUN echo "Creating Docker image for user : $USER"
+
+# Copy core utils (used to build docker image) files from host machine.
+# This might increase chances of using cached docker image if these files didn't change
+COPY --chown=$USER:$USER ./core-utils/* "${BASE_DIR}/core-utils/"
 
 # Build LLVM for aarch64 target with musl libc
-RUN ${BASE_DIR}/utils/clone-llvm.sh
-RUN ${BASE_DIR}/utils/build-llvm.sh
+RUN ${BASE_DIR}/core-utils/clone-llvm.sh
+RUN ${BASE_DIR}/core-utils/build-llvm.sh
 
 # Add LLVM install path to search path
-ENV PATH="${PATH}:${LLVM}/bin:${BASE_DIR}/utils:${BASE_DIR}/tools/qemu/bin"
-
-FROM updated-base AS llvm-tools-base
+ENV PATH="${PATH}:${LLVM}/bin:${BASE_DIR}/utils:${BASE_DIR}/core-utils:${BASE_DIR}/tools/qemu/bin"
 
 ## Since all files/dirs created so far are owned by root, change the permissions/owner
 RUN touch "${HOME}/.bashrc" && \
     chown -R $USER:$USER "${BASE_DIR}"
 
+
 # Switch to user account
 USER "$USER"
 
 # Build qemu aarch64 simulator
-RUN ${BASE_DIR}/utils/clone-qemu.sh
-RUN ${BASE_DIR}/utils/build-qemu.sh
-
-# Prepare Python virtual env
-RUN ${BASE_DIR}/utils/build-py-vdev.sh
-
-# Build apps-sysroot
-RUN ${BASE_DIR}/utils/clone-qcbor-dtc.sh
-RUN ${BASE_DIR}/utils/build-sysroot.sh
+RUN ${BASE_DIR}/core-utils/clone-qemu.sh
+RUN ${BASE_DIR}/core-utils/build-qemu.sh
 
 ## Update scripts (if docker is using cached images) or override build
-#RUN cd ${BASE_DIR}/utils/gunyah-support-scripts && git pull --ff
-#RUN cp -r ${BASE_DIR}/utils/gunyah-support-scripts/scripts/utils/* ${BASE_DIR}/utils/
+#RUN cd ${BASE_DIR}/updates/gunyah-support-scripts && git pull --ff
+#RUN cp -r ${BASE_DIR}/updates/gunyah-support-scripts/scripts/utils/* ${BASE_DIR}/utils/
+#RUN cp -r ${BASE_DIR}/updates/gunyah-support-scripts/scripts/core-utils/* ${BASE_DIR}/core-utils/
 
-FROM llvm-tools-base AS libs-base
+# Prepare Python virtual env
+RUN ${BASE_DIR}/core-utils/build-py-vdev.sh
+
+# Build apps-sysroot
+RUN ${BASE_DIR}/core-utils/clone-qcbor-dtc.sh
+RUN ${BASE_DIR}/core-utils/build-sysroot.sh
 
 # Build upstream linux and ramdisk
 RUN mkdir ${BASE_DIR}/linux
-RUN ${BASE_DIR}/utils/clone-linux.sh
-RUN ${BASE_DIR}/utils/build-linux.sh
-RUN ${BASE_DIR}/utils/build-ramdisk.sh
+RUN ${BASE_DIR}/core-utils/clone-linux.sh
+RUN ${BASE_DIR}/core-utils/build-linux.sh
+RUN ${BASE_DIR}/core-utils/build-ramdisk.sh
 
-FROM libs-base AS linux-base
+# Copy utils files from host machine.
+COPY ./utils/* "${BASE_DIR}/utils/"
 
 ## Copy files to useful folders
-RUN cp ${BASE_DIR}/utils/kern-test.sh ${TOOLS_DIR}/qemu/  && \
+RUN cp ${BASE_DIR}/core-utils/build-linux.sh  ${BASE_DIR}/linux/ && \
+    cp ${BASE_DIR}/utils/kern-test.sh ${TOOLS_DIR}/qemu/  && \
     cp ${BASE_DIR}/utils/run-qemu.sh  ${TOOLS_DIR}/qemu/  && \
-    cp ${BASE_DIR}/utils/build-linux.sh  ${BASE_DIR}/linux/ && \
     cp ${BASE_DIR}/utils/clone-gunyah.sh  ${BASE_DIR}/hyp/  && \
     cp ${BASE_DIR}/utils/build-gunyah.sh  ${BASE_DIR}/hyp/  && \
     cp ${BASE_DIR}/utils/gdb-start.sh  ${BASE_DIR}/hyp/
@@ -160,7 +164,5 @@ RUN echo "" >> "${HOME}/.bashrc" && \
 ## Add any .bashrc user customizations to .bashrc
 COPY bashrc-extn .
 RUN cat bashrc-extn >> "${HOME}/.bashrc"  &&  rm -f bashrc-extn
-
-FROM linux-base AS final-image
 
 CMD /bin/bash

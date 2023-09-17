@@ -44,7 +44,7 @@ pushd QCBOR
 
 echo -e "\napplying QCBOR patch"
 
-git apply "${BASE_DIR}/utils/gunyah-qcbor.patch"  || {
+git apply "${BASE_DIR}/core-utils/gunyah-qcbor.patch"  || {
 	echo "Unable to apply qcbor gunyah patch to QCBOR"
 	exit 1
 }
