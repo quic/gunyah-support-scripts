@@ -7,5 +7,3 @@
 set -e
 
 git clone --recurse-submodules https://chromium.googlesource.com/crosvm/crosvm crosvm
-
-

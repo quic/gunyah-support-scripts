@@ -1,4 +1,4 @@
-# Demo Linux Booting on SVM
+# Demo - Linux Booting in a SVM
 
 To verify Linux booting in SVM, we need the following components:
 
@@ -88,7 +88,7 @@ At a high level, this process does the following:
     - crosvm (VMM)
     - ramdisk, kernel image (for SVM)
 
-Following instructions should be executed in the docker environment.
+The following instructions should be executed in the docker environment.
 
 cd to shared folder
 
@@ -183,7 +183,7 @@ OR
 /usr/gunyah/svm.sh
 ```
 
-Following shows the console logs of SVM. This could be pretty slow since each uart IO is going through the crosvm virtio-console (ie the control needs to switch from SVM back to PVM crosvm app to output the char to the actual console).
+The following shows the console logs of SVM. This could be pretty slow since each uart IO is going through the crosvm virtio-console (ie the control needs to switch from SVM back to PVM crosvm app to output the char to the actual console).
 
 ```bash
 root@qemuarm64:~# /usr/gunyah/crosvm --no-syslog run --disable-sandbox --serial=type=stdout,hardware=virtio-console,console,stdin,num=1
@@ -228,8 +228,8 @@ Requesting system poweroff
 
 Press ```ctrl-a and x``` to exit Qemu
 
-Some future todo's:
+Follow-up TODO's:
 
-Community help on these items is welcome
-- Enable ssh in PVM Linux, so that we can connect multiple ssh sessions and test multiple SVM sessions simultaneously
-- Enable a different console mechanism to speed up the SVM linux interactive session
+The following areas require work, any help on these is appreciated:
+- Enable ```ssh_server``` in PVM Linux OS image, so that we can connect multiple ssh sessions and test multiple SVM sessions simultaneously.
+- Fix poor performance of the SVM Linux console, for example using the Gunayh RM Console driver.

@@ -219,6 +219,4 @@ sudo chmod 0755 ${ROOTFS_REFERENCE_DIR}/lib/libgcc_s.so.1
 # -----------------------------------------------------------------------------
 # Create a extfs device image of required size
 
-# ~/utils/bldextfs.sh -f ~/rootfs/rootfs/reference -o rootfs.extfs.img -s 1G -p
-
-
+# ~/utils/bldextfs.sh -f ~/rootfs/rootfs/reference -o rootfs.extfs.img -s 1G

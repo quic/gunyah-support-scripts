@@ -4,9 +4,8 @@ This repository stores scripts and Dockerfiles needed for building and testing G
 
 ## Quick start:
 
-
-
 - [Quick Setup instructions](quickstart.md)
+- [Debug instructions and notes](debugging.md)
 
 Gunyah related repositories:
 - [Setup Tools and Scripts](https://github.com/quic/gunyah-support-scripts) (This repository)

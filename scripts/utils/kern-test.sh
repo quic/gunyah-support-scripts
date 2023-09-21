@@ -27,7 +27,7 @@ if [[ ! -z ${VIRTIO_DEVICE_FILE} ]]; then
     VIRTIO_BLK_DEVMAP=" -drive file=${VIRTIO_DEVICE_FILE},if=none,id=vd0,cache=writeback,format=raw -device virtio-blk,drive=vd0 "
 fi
 
-echo -e "Starting qemu-system-aarch64... (It may a minute to see console output logs)\n\n"
+echo -e "Starting qemu-system-aarch64... (It may take a minute to see console output logs)\n\n"
 
 ./bin/qemu-system-aarch64 -machine virt,virtualization=on,gic-version=3,highmem=off \
 	-cpu max -m size=$PLATFORM_DDR_SIZE -smp cpus=8  -nographic \

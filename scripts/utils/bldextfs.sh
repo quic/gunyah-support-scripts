@@ -100,4 +100,3 @@ sudo umount ./tmp-ext-fs
 echo "Unmounting completed, removing the temp folder..."
 
 # rm -rf ./tmp-ext-fs
-

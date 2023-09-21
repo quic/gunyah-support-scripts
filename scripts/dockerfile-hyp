@@ -91,16 +91,6 @@ ENV LOCAL_SYSROOT="${LIB_DIR}/app-sysroot"
 
 RUN mkdir -p ${BASE_DIR}/utils ${BASE_DIR}/core-utils ${TOOLS_DIR}/src ${BASE_DIR}/hyp && touch ${TOOLS_DIR}/.tools-env
 
-# Get a copy of the gunyah support scripts repo
-#WORKDIR ${BASE_DIR}/updates
-#RUN git clone https://github.com/quic/gunyah-support-scripts.git
-#RUN cp -r gunyah-support-scripts/scripts/utils/* ${BASE_DIR}/utils && \
-#	chown -R $USER:$USER ${BASE_DIR}/utils && \
-#	chmod +x ${BASE_DIR}/utils/*
-#RUN cp -r gunyah-support-scripts/scripts/core-utils/* ${BASE_DIR}/core-utils && \
-#	chown -R $USER:$USER ${BASE_DIR}/core-utils && \
-#	chmod +x ${BASE_DIR}/core-utils/*
-
 WORKDIR ${BASE_DIR}
 
 RUN echo "Creating Docker image for user : $USER"
@@ -120,18 +110,12 @@ ENV PATH="${PATH}:${LLVM}/bin:${BASE_DIR}/utils:${BASE_DIR}/core-utils:${BASE_DI
 RUN touch "${HOME}/.bashrc" && \
     chown -R $USER:$USER "${BASE_DIR}"
 
-
 # Switch to user account
 USER "$USER"
 
 # Build qemu aarch64 simulator
 RUN ${BASE_DIR}/core-utils/clone-qemu.sh
 RUN ${BASE_DIR}/core-utils/build-qemu.sh
-
-## Update scripts (if docker is using cached images) or override build
-#RUN cd ${BASE_DIR}/updates/gunyah-support-scripts && git pull --ff
-#RUN cp -r ${BASE_DIR}/updates/gunyah-support-scripts/scripts/utils/* ${BASE_DIR}/utils/
-#RUN cp -r ${BASE_DIR}/updates/gunyah-support-scripts/scripts/core-utils/* ${BASE_DIR}/core-utils/
 
 # Prepare Python virtual env
 RUN ${BASE_DIR}/core-utils/build-py-vdev.sh

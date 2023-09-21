@@ -88,4 +88,3 @@ if [[ ! -z $CPIO_ARCHIVE_TYPE ]]; then
     echo "rm -rf $MOUNT_FOLDER"
     echo "rm -f $FILE_TO_MOUNT"
 fi
-
