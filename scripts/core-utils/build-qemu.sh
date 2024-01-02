@@ -6,41 +6,41 @@
 
 set -e
 
-env_check() {
-    if [ -z "$1" ]; then 
-        echo -e "\n$1 is not set" 
-        exit 1
-    fi
-}
-
-checkenv_dir() {
-    DIR=`printenv $1`
-    if [[ ! -d "$DIR" ]]; then
-        echo -e "\nDirectory Doesn't Exists : $DIR"
-        exit 1
-    fi
-}
-
-env_check TOOLS_DIR && checkenv_dir TOOLS_DIR
-
-echo -e "\nTOOLS_DIR : $TOOLS_DIR"
+echo -e "\nBuild Qemu from TOOLS_DIR : $TOOLS_DIR"
+echo "QEMU_INSTALL_DIR : $QEMU_INSTALL_DIR"
 
 CPU_CNT=$(grep -c ^processor /proc/cpuinfo)
 echo -e "\nCPU_CNT:${CPU_CNT}"
 
-echo -e "\nBuilding Qemu"
+TOOLS_SRC_DIR="${TOOLS_DIR}/src"
 
-SRC_DIR="${TOOLS_DIR}/src"
+SLIRPLIB_FLAGS=" "
 
-if [[ ! -d ${SRC_DIR}/qemu ]]; then
-    echo -e "\nqemu Sources do not exist here: ${SRC_DIR}"
-    echo -e "\nrun clone-qemu.sh in utils"
-	exit 1
+if [[ -d ${TOOLS_SRC_DIR}/libslirp ]]; then
+	echo "Found libslirp, build and installing"
+
+	SLIRPLIB_FLAGS=" --enable-slirp --static "
+
+	cd ${TOOLS_SRC_DIR}/libslirp
+	meson build --prefix=${QEMU_INSTALL_DIR}
+	ninja -C build install
+	cd ..
+else
+	echo "libslirp is not found..!!"
 fi
 
-cd $SRC_DIR
+if [[ ! -d ${TOOLS_SRC_DIR}/qemu ]]; then
+    echo -e "\nqemu Sources do not exist here: ${TOOLS_SRC_DIR}"
+    echo -e "\nrun clone-qemu.sh in utils"
+	return
+fi
+
+cd $TOOLS_SRC_DIR
 
 pushd qemu
+
+# TODO: Fix it later and enable it back
+SLIRPLIB_FLAGS=" "
 
 mkdir -p build
 cd build
@@ -49,13 +49,14 @@ echo -e "[BUILD] building and installing ''qemu''."
 	--prefix=${QEMU_INSTALL_DIR} \
 	--target-list=aarch64-softmmu \
 	--extra-cflags=-Wno-error \
+	${SLIRPLIB_FLAGS} \
 	--enable-debug  &&
 	make -j${CPU_CNT}  &&
-	mkdir -p ${QEMU_IMGS_DIR}  &&
 	make install  || {
 	    echo "Failed."
-            exit 1
+            return
 	}
 popd >/dev/null
 
-
+# Delete sources to save space, comment to retain sources
+#rm -rf ${TOOLS_SRC_DIR}/qemu

@@ -24,12 +24,17 @@ CPU_TYPE=max
 #CPU_TYPE=cortex-a72
 
 if [[ ! -z ${VIRTIO_DEVICE_FILE} ]]; then
-    VIRTIO_BLK_DEVMAP=" -drive file=${VIRTIO_DEVICE_FILE},if=none,id=vd0,cache=writeback,format=raw -device virtio-blk,drive=vd0 "
+    if [[ -f ${VIRTIO_DEVICE_FILE} ]]; then
+	VIRTIO_BLK_DEVMAP=" -drive file=${VIRTIO_DEVICE_FILE},if=none,id=vd0,cache=writeback,format=raw -device virtio-blk,drive=vd0 "
+    else
+	echo "Virtio disk file is not found, booting without using the disk"
+    fi
+
 fi
 
 echo -e "Starting qemu-system-aarch64... (It may take a minute to see console output logs)\n\n"
 
-./bin/qemu-system-aarch64 -machine virt,virtualization=on,gic-version=3,highmem=off \
+qemu-system-aarch64 -machine virt,virtualization=on,gic-version=3,highmem=off \
 	-cpu max -m size=$PLATFORM_DDR_SIZE -smp cpus=8  -nographic \
 	-kernel ${KERNEL_IMAGE_DIR}/Image \
 	-initrd ${INITRD_IMAGE_DIR}/initrd.img \

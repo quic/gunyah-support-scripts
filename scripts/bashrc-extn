@@ -5,6 +5,10 @@
 alias c='clear'
 alias l='ls -la'
 
+if [[ -z "${USER}" ]]; then
+	export USER=`whoami`
+fi
+
 # If any custom adjustments needed in docker environment runtime without
 # generating new image, add the following file in the shared host folder
 # This script is sourced in docker shell environment
@@ -15,8 +19,3 @@ if [[ ! -f ~/.init-done ]] ; then
 	fi
 	touch ~/.init-done
 fi
-
-if [[ -z "${USER}" ]]; then
-	export USER=`whoami`
-fi
-

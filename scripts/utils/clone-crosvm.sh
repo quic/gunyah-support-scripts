@@ -6,4 +6,9 @@
 
 set -e
 
-git clone --recurse-submodules https://chromium.googlesource.com/crosvm/crosvm crosvm
+if [[ ! -d ./crosvm-src ]]; then
+    echo "Local sources copy doesn't exist, cloning now"
+    git clone --recurse-submodules https://chromium.googlesource.com/crosvm/crosvm crosvm-src
+else
+    echo "crosvm sources already exists, skipping cloning"
+fi

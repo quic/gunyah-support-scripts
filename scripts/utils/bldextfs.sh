@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# © 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+# Â© 2023 Qualcomm Innovation Center, Inc. All rights reserved.
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
@@ -16,7 +16,7 @@ if [[ $# -le 2 ]]; then
     echo -e "\t -o|--outfile path : Path name of file to create"
     echo -e "\t -s|--size    xxx  : Image size to create. KMG can be used for units"
     echo -e "\t -p|--parti        : Create partition in the disk"
-    exit 1;
+    return
 fi
 
 eval set -- "$VALID_ARGS"
@@ -42,26 +42,27 @@ while [ : ]; do
 	#echo "Partition Disk"
         shift
         ;;
-    --) shift; 
-        break 
+    --) shift;
+        break
         ;;
   esac
 done
 
 if [[ ! -d ${IN_FOLDER} ]]; then
     echo "${IN_FOLDER} not found!"
-    exit 1
+    return
 fi
 
 if [[ -f ${OUT_FILE} ]]; then
     echo "File ${OUT_FILE} already exists..!!"
-    exit 2
+    return
 fi
 
 #dd if=/dev/zero of=extfs-disk.img bs=1k count=512k
 qemu-img create -f raw ${OUT_FILE} ${DISK_SIZE}
 
-mkdir -p ./tmp-ext-fs
+TEMP_MOUNT_FOLDER=$(dirname ${OUT_FILE})/tmp-ext-fs
+mkdir -p ${TEMP_MOUNT_FOLDER}
 
 if [[ -z ${DISK_PARTI} ]]; then
 
@@ -69,7 +70,7 @@ if [[ -z ${DISK_PARTI} ]]; then
     echo "Creating Disk image without partition"
 
     mkfs.ext4 ${OUT_FILE}
-    sudo mount  -o loop ${OUT_FILE} ./tmp-ext-fs
+    sudo mount  -o loop ${OUT_FILE} ${TEMP_MOUNT_FOLDER}
 
 else
     # Disk image, with partitioning
@@ -81,22 +82,19 @@ else
     PARTI_OFFSET=`fdisk -l ${OUT_FILE} | grep "${OUT_FILE}1" | xargs | cut -d " " -f 2`
     mkfs.ext4 ${OUT_FILE} -E offset=$(( 512 * ${PARTI_OFFSET} ))
 
-    sudo mount  -o loop,offset=$(( 512 * $PARTI_OFFSET )) ${OUT_FILE} ./tmp-ext-fs
+    sudo mount  -o loop,offset=$(( 512 * $PARTI_OFFSET )) ${OUT_FILE} ${TEMP_MOUNT_FOLDER}
 
 fi
 
 echo "Mounted the extfs formatted disk, starting to copy"
 
-sudo cp -v -r -p ${IN_FOLDER}/* ./tmp-ext-fs
+sudo cp -v -r -p ${IN_FOLDER}/* ${TEMP_MOUNT_FOLDER}
 
 echo "Copying completed, syncing..."
-
 sync
 
 echo "Sync completed, Unmounting..."
-
-sudo umount ./tmp-ext-fs
+sudo umount ${TEMP_MOUNT_FOLDER}
 
 echo "Unmounting completed, removing the temp folder..."
-
-# rm -rf ./tmp-ext-fs
+rm -rf ${TEMP_MOUNT_FOLDER}

@@ -15,6 +15,25 @@ Gunyah related repositories:
 
 > See https://github.com/quic/gunyah-hypervisor for additional documentation.
 
+## Release notes
+
+#### Dec 2023 (1.20)
+- Moved all generated images out of docker image (folder re-arch)
+- Using docker volumes for all generated images, so all changes will be persistent
+- Faster and simpler updates to latest versions of scripts in future
+- Added version info to file ```scripts/version.sh``` (previous releases are implied as 1.00 and 1.10)
+    - Also set in env variable ```$ENV_VERSION``` in docker environment
+
+#### Sep 2023
+- Added scripts to generate all images required for SVM linux booting
+- Updated instructions to demo SVM loading and execution
+
+#### June 2023
+- Major update from previous releases
+- Simplified docker script
+- Moved all commands into simple scripts
+- Updated and simplified all instructions
+
 ## License
 
 SPDX-License-Identifier: BSD-3-Clause

@@ -6,43 +6,31 @@
 
 set -e
 
-env_check() {
-    if [ -z "$1" ]; then
-        echo -e "\n$1 is not set"
-        exit 1
-    fi
-}
+echo -e "\nLLVM TOOLS_DIR : $TOOLS_DIR"
 
-checkenv_dir() {
-    DIR=`printenv $1`
-    if [[ ! -d "$DIR" ]]; then
-        echo -e "Directory Doesn't Exists : $DIR"
-        exit 2
-    fi
-}
+TOOLS_SRC_DIR=$TOOLS_DIR/src
+LLVM_TOOLS_SRC_DIR=${TOOLS_SRC_DIR}/llvm-tools
 
-env_check TOOLS_DIR && checkenv_dir TOOLS_DIR
+if [[ ! -d ${LLVM_TOOLS_SRC_DIR} ]] ; then
 
-echo -e "\nTOOLS_DIR : $TOOLS_DIR"
+	mkdir -p ${LLVM_TOOLS_SRC_DIR}
+	cd ${LLVM_TOOLS_SRC_DIR}
 
-mkdir -p ${TOOLS_DIR}/src
-cd ${TOOLS_DIR}/src
+	# LLVM
+	echo -e "\nCloning LLVM into : ${LLVM_TOOLS_SRC_DIR}"
+	git clone \
+	  --single-branch --depth=1 --progress -c advice.detachedHead=false -b \
+	  release/15.x \
+	  https://github.com/llvm/llvm-project.git || {
+		echo "Unable to clone LLVM"
+		return
+	    }
 
-# LLVM
-echo -e "\nCloning LLVM:"
-git clone \
-  --single-branch --depth=1 --progress -c advice.detachedHead=false -b \
-  release/15.x \
-  https://github.com/llvm/llvm-project.git  || {
-	echo "Unable to clone LLVM"
-	exit 3
-    }
-
-# MUSL
-echo -e "\nCloning MUSL:"
-git clone -c advice.detachedHead=false -b v1.1.24 \
-    https://git.musl-libc.org/git/musl  || {
-	echo "Unable to clone Musl"
-	exit 4
-    }
-
+	# MUSL
+	echo -e "\nCloning MUSL into ${LLVM_TOOLS_SRC_DIR}"
+	git clone -c advice.detachedHead=false -b v1.1.24 \
+	    https://git.musl-libc.org/git/musl  || {
+		echo "Unable to clone Musl"
+		return
+	    }
+fi

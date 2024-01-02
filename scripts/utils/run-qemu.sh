@@ -53,15 +53,17 @@ CPU_TYPE=max
 #CPU_TYPE=cortex-a72
 
 if [[ "$1" == "dtb" ]]; then
-
+    CMD_LINE="rw root=/dev/ram rdinit=/sbin/init earlyprintk=serial,ttyAMA0 console=ttyAMA0 "
     if [[ ! -z "${VIRTIO_DEVICE_FILE}" ]]; then
+        if [[ -f "${VIRTIO_DEVICE_FILE}" ]]; then
 	    CMD_LINE="root=/dev/vda"
-    else
-	    CMD_LINE="rw root=/dev/ram rdinit=/sbin/init earlyprintk=serial,ttyAMA0 console=ttyAMA0 "
+        else
+	    echo "Virtio disk file is not found, will boot without the disk"
+        fi
     fi
 
     if [[ ! -f $IMGS_FOLDER/virt.dtb ]]; then
-	./bin/qemu-system-aarch64 -machine virt,virtualization=on,gic-version=3,highmem=off \
+	qemu-system-aarch64 -machine virt,virtualization=on,gic-version=3,highmem=off \
 	   -cpu $CPU_TYPE -m size=$LINUX_VM_MEMORY_SIZE -smp cpus=8  -nographic  \
 	   -kernel $HYP_IMG_FOLDER/hypvm.elf \
 	   -device loader,file=$IMGS_FOLDER/Image,addr=$LINUX_BASE \
@@ -73,7 +75,7 @@ if [[ "$1" == "dtb" ]]; then
     # Give Linux kernel only 1GB of memory
     echo "Generating dtb and exiting..."
 
-    ./bin/qemu-system-aarch64 -machine virt,virtualization=on,gic-version=3,highmem=off \
+    qemu-system-aarch64 -machine virt,virtualization=on,gic-version=3,highmem=off \
        -cpu $CPU_TYPE -m size=$LINUX_VM_MEMORY_SIZE -smp cpus=8  -nographic  \
        -kernel $HYP_IMG_FOLDER/hypvm.elf \
        -device loader,file=$IMGS_FOLDER/Image,addr=$LINUX_BASE \
@@ -116,9 +118,13 @@ EOF
 else
 
     if [[ ! -z "${VIRTIO_DEVICE_FILE}" ]]; then
-        # Map the virt device
-	VIRTIO_BLK_DEVMAP=" -drive file=${VIRTIO_DEVICE_FILE},if=none,id=vd0,cache=writeback,format=raw -device virtio-blk,drive=vd0 "
-        # VIRTIO_BLK_DEVMAP=" -drive if=virtio,format=raw,file=${VIRTIO_DEVICE_FILE} -device virtio-scsi-pci,id=scsi0  "
+        if [[ -f "${VIRTIO_DEVICE_FILE}" ]]; then
+            # Map the virt device
+	    VIRTIO_BLK_DEVMAP=" -drive file=${VIRTIO_DEVICE_FILE},if=none,id=vd0,cache=writeback,format=raw -device virtio-blk,drive=vd0 "
+            # VIRTIO_BLK_DEVMAP=" -drive if=virtio,format=raw,file=${VIRTIO_DEVICE_FILE} -device virtio-scsi-pci,id=scsi0  "
+	else
+	    echo "Virtio disk file is not found, booting without using the disk"
+	fi
     fi
 
     #  Update the image for every run, just in case if we built it as part of development process.
@@ -127,7 +133,7 @@ else
     	cp ${HYP_ROOT_PATH}/qemu/hypvm.elf ./imgs/
     fi
 
-    ./bin/qemu-system-aarch64 -machine virt,virtualization=on,gic-version=3,highmem=off \
+    qemu-system-aarch64 -machine virt,virtualization=on,gic-version=3,highmem=off \
 	-cpu max,sve128=on -m size=$PLATFORM_DDR_SIZE -smp cpus=8  -nographic \
 	-accel tcg,thread=multi \
 	-kernel $HYP_IMG_FOLDER/hypvm.elf \

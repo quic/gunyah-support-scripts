@@ -6,9 +6,19 @@
 
 set -e
 
+# See if we can migrate data from Old docker image if existing
+./check-and-migrate.sh
+
+VERSION_SCRIPT=$(dirname "${BASH_SOURCE[0]}")/version.sh
+. ${VERSION_SCRIPT}
+
+CURRENT_DOCKER_IMAGE_TAG=hyp-dev-term:${CURRENT_VER}
+
 # Use public docker registry
 REGISTRY_SERVER="ubuntu:22.04"
 
+# For internal Qcom network, set the environment variable using
+# LOCAL_DOCKER_REGISTRY=docker-registry-ro.qualcomm.com/library
 # Use local registry if set
 if [[ ! -z "${LOCAL_DOCKER_REGISTRY}" ]]; then
 	REGISTRY_SERVER="${LOCAL_DOCKER_REGISTRY}/${REGISTRY_SERVER}"
@@ -35,12 +45,32 @@ DOCKER_OPTIONS+=" --build-arg UID=$(id -u) "
 DOCKER_OPTIONS+=" --build-arg GID=$(id -g) "
 DOCKER_OPTIONS+=" --build-arg USER=${USER} "
 DOCKER_OPTIONS+=" --build-arg REGISTRY=${REGISTRY_SERVER} "
+DOCKER_OPTIONS+=" --build-arg ENV_VER=${CURRENT_VER} "
 
 # Dockerfile name
 DOCKER_OPTIONS+="  -f ${USE_THIS_DOCKERFILE} "
 
 # Docker image Tag
-DOCKER_OPTIONS+="  -t hyp:dev-term"
+DOCKER_OPTIONS+="  -t $CURRENT_DOCKER_IMAGE_TAG"
 
 # Build docker image
 docker $DOCKER_OPTIONS $*
+
+echo -e "\nBuilt or updated the docker image, now installing or configuring Core tools\n"
+
+echo ""
+echo "*********** Sudo password Note..!! *********************************"
+echo ""
+echo "  Following commands are executed within docker environment, so when a"
+echo "  prompt for sudo password showsup, type 1234 which is the default password"
+echo "  set when building the docker image (unless it was changed)"
+echo ""
+echo "********************************************************************"
+echo ""
+
+HOST_TO_DOCKER_SHARED_DIR="" . ./run-docker.sh /bin/bash -c 'sudo -E $BASE_DIR/share/install-core-tools.sh'
+
+# Now install workspace images
+HOST_TO_DOCKER_SHARED_DIR="" . ./run-docker.sh /bin/bash -c '$BASE_DIR/share/install-wsp-imgs.sh'
+
+echo -e "Building docker image completed\n"

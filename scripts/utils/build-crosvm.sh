@@ -6,4 +6,17 @@
 
 set -e
 
-./tools/dev_container sh -c "cargo build --features gunyah --target aarch64-unknown-linux-gnu --release --no-default-features && cp /scratch/cargo_target/aarch64-unknown-linux-gnu/release/crosvm ."
+if [[ ! -f ./crosvm ]]; then
+    echo "Building crosvm from folder `pwd`"
+    cd ./crosvm-src
+    ./tools/dev_container sh -c "cargo build --features gunyah --target aarch64-unknown-linux-gnu --release --no-default-features && cp /scratch/cargo_target/aarch64-unknown-linux-gnu/release/crosvm ."
+
+    echo "Completed building crosvm binary, copying to parent folder"
+    cp ./crosvm ../
+    cd ..
+
+    # Delete sources to save on space
+    rm -rf ./crosvm-src
+else
+    echo "Crosvm binary already exists, skipping building"
+fi

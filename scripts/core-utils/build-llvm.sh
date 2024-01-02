@@ -6,42 +6,33 @@
 
 set -e
 
-env_check() {
-    if [ -z "$1" ]; then 
-        echo -e "\n$1 is not set" 
-        exit 1
-    fi
-}
+echo -e "\nBuild llvm from TOOLS_DIR : $TOOLS_DIR"
 
-checkenv_dir() {
-    DIR=`printenv $1`
-    if [[ ! -d "$DIR" ]]; then
-        echo -e "\nDirectory Doesn't Exists : $DIR"
-        exit 1
-    fi
-}
+if [[ -z "${LLVM}" ]]; then
+    echo "LLVM environment variable not set"
+    return
+fi
 
+echo "LLVM : ${LLVM}"
 
-env_check TOOLS_DIR && checkenv_dir TOOLS_DIR
-
-echo -e "\nTOOLS_DIR : ${TOOLS_DIR}"
+TOOLS_SRC_DIR=${TOOLS_DIR}/src
+LLVM_TOOLS_SRC_DIR=${TOOLS_SRC_DIR}/llvm-tools
+LLVM_SRC_DIR="${LLVM_TOOLS_SRC_DIR}/llvm-project"
+MUSL_SRC_DIR="${LLVM_TOOLS_SRC_DIR}/musl"
 
 LLVM_INSTALL_DIR="${LLVM}"
 CPU_CNT=$(grep -c ^processor /proc/cpuinfo)
-LLVM_SRC_BUILD_DIR="${TOOLS_DIR}/src/llvm-project"
-MUSL_SRC_BUILD_DIR="${TOOLS_DIR}/src/musl"
 
-if [[ ! -d ${LLVM_SRC_BUILD_DIR} ]]; then
-    echo -e "\nllvm Sources do not exist here: ${LLVM_SRC_BUILD_DIR}"
-    echo -e "\nrun clone-llvm.sh in utils"
-	exit 1
+if [[ ! -d ${LLVM_TOOLS_SRC_DIR} ]]; then
+	echo -e "\nllvm Sources not found at : ${LLVM_TOOLS_SRC_DIR}"
+	return
 fi
 
-pushd ${LLVM_SRC_BUILD_DIR}/llvm
+pushd ${LLVM_SRC_DIR}/llvm
 mkdir -p build
 cd build
 
-echo "Building LLVM $LLVM_SRC_BUILD_DIR"
+echo "Building LLVM $LLVM_SRC_DIR"
 
 cmake .. \
 	-G Ninja \
@@ -56,18 +47,18 @@ cmake .. \
 	rm -rf ${LLVM_INSTALL_DIR}/* &&
 	ninja install  || {
        		echo "Failed building LLVM"
-		exit 1
+		return
        	}
 
 echo "Done building LLVM, installed at ${LLVM_INSTALL_DIR}"
 popd
 
-LLVM_VERSION=$(${LLVM_SRC_BUILD_DIR}/llvm/build/bin/llvm-config --version | tr -d git)
+LLVM_VERSION=$(${LLVM_SRC_DIR}/llvm/build/bin/llvm-config --version | tr -d git)
 
 
 echo "LLVM_VERSION : ${LLVM_VERSION}"
 
-pushd ${MUSL_SRC_BUILD_DIR}
+pushd ${MUSL_SRC_DIR}
 mkdir -p build
 cd build
 echo "Building musl lib"
@@ -84,7 +75,7 @@ CROSS_COMPILE=aarch64-linux-gnu- \
 	make &&
 	make install || {
        		echo "Failed building musl lib"
-		exit 1
+		return
 	}
 
 echo "Done building musl lib"
@@ -92,7 +83,7 @@ popd
 
 export PATH=${LLVM_INSTALL_DIR}/bin:${PATH}
 
-pushd ${LLVM_SRC_BUILD_DIR}/compiler-rt
+pushd ${LLVM_SRC_DIR}/compiler-rt
 mkdir -p build
 cd build
 echo "Install c runtime lib to llvm"
@@ -113,18 +104,17 @@ cmake .. \
 	-DCOMPILER_RT_BUILD_SANITIZERS=OFF \
 	-DCOMPILER_RT_BUILD_XRAY=OFF \
 	-DCOMPILER_RT_DEFAULT_TARGET_ONLY=ON \
-	-DLLVM_CONFIG_PATH=${LLVM_SRC_BUILD_DIR}/llvm/build/bin/llvm-config \
+	-DLLVM_CONFIG_PATH=${LLVM_SRC_DIR}/llvm/build/bin/llvm-config \
 	-DCMAKE_BUILD_TYPE=Release \
 	-DCMAKE_INSTALL_PREFIX=${LLVM_INSTALL_DIR}/lib/clang/${LLVM_VERSION}/ &&
 	ninja -j${CPU_CNT} &&
 	ninja install || {
        		echo "Failed to install runtime lib to llvm"
-		exit 1
+		return
        	}
 
 echo "Install c runtime lib to llvm done"
 popd
 
-# Delete the build to save disk space
-rm -rf ${LLVM_SRC_BUILD_DIR}
-rm -rf ${MUSL_SRC_BUILD_DIR}
+# Delete the sources and build folders to save disk space
+rm -rf ${LLVM_TOOLS_SRC_DIR}

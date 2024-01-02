@@ -6,51 +6,42 @@
 
 set -e
 
-env_check() {
-    if [ -z "$1" ]; then
-        echo -e "\n$1 is not set"
-        exit 1
-    fi
-}
+echo -e "\nClone QEMU to TOOLS_DIR : $TOOLS_DIR"
 
-checkenv_dir() {
-    DIR=`printenv $1`
-    if [[ ! -d "$DIR" ]]; then
-        echo -e "Directory Doesn't Exists : $DIR"
-        exit 1
-    fi
-}
+TOOLS_SRC_DIR=${TOOLS_DIR}/src
 
+mkdir -p ${TOOLS_SRC_DIR}
 
-env_check TOOLS_DIR && checkenv_dir TOOLS_DIR
+if [[ ! -d ${TOOLS_SRC_DIR}/qemu ]] ; then
 
-echo -e "\nTOOLS_DIR : ${TOOLS_DIR}"
+	cd ${TOOLS_SRC_DIR}
 
-mkdir -p ${TOOLS_DIR}/src
+	# QEMU
+	echo -e "\nCloning QEMU:"
+	git clone \
+	    --single-branch --depth=1 --progress -c advice.detachedHead=false \
+	    -b v7.2.0 \
+	    https://git.qemu.org/git/qemu.git  || {
+		echo "Unable to clone QEMU"
+		return
+	    }
 
-cd ${TOOLS_DIR}/src
-rm -rf qemu
+	pushd qemu
 
-# QEMU
-echo -e "\nCloning QEMU:"
-git clone \
-    --single-branch --depth=1 --progress -c advice.detachedHead=false \
-    -b v7.2.0 \
-    https://git.qemu.org/git/qemu.git  || {
-	echo "Unable to clone QEMU"
-	exit 1
-    }
+	git submodule init  || {
+		echo "Unable to do submodule init"
+		return
+	    }
 
-pushd qemu
+	git submodule update --recursive --depth=1  || {
+		echo "Unable to do submodule update"
+		return
+	    }
 
-git submodule init  || {
-	echo "Unable to do submodule init"
-	exit 1
-    }
+	popd
+fi
 
-git submodule update --recursive --depth=1  || {
-	echo "Unable to do submodule update"
-	exit 1
-    }
-
-popd
+if [[ ! -d ${TOOLS_SRC_DIR}/libslirp ]] ; then
+	# download libslirp to enable networking
+	git clone https://gitlab.freedesktop.org/slirp/libslirp.git
+fi

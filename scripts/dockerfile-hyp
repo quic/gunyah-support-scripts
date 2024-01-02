@@ -14,7 +14,6 @@ ENV TZ=America/Los_Angeles \
     LANGUAGE=en_US:en \
     LC_ALL=en_US.UTF-8
 
-
 # These defaults below are overridden by DOCKER_OPTIONS
 ARG USER=test
 ARG UID=50000
@@ -24,6 +23,8 @@ ARG GID=200
 RUN groupadd -g "$GID" "$USER" && \
 	useradd -m -u "$UID" -g "$GID" -s /bin/bash "$USER" && \
 	echo "$USER:1234" | chpasswd && adduser "$USER" sudo
+
+RUN apt-get update && apt-get install -y apt-utils
 
 RUN apt-get install -y \
     software-properties-common \
@@ -48,6 +49,7 @@ RUN apt-get install -y \
     libfdt-dev \
     libpixman-1-dev \
     zlib1g-dev \
+    meson \
 # gdb 9.2 dependencies
     libreadline-dev \
     texinfo \
@@ -73,77 +75,53 @@ RUN apt-get install -y \
 # Repos dependencies
     python3-venv
 
-RUN locale-gen en_US.UTF-8
+RUN locale-gen en_US.UTF-8  && \
+    dpkg-reconfigure locales
 
 ENV HOME="/home/$USER"
-RUN mkdir -p  "${HOME}" && \
-    chown -R $USER:$USER "${HOME}"
+RUN mkdir -p  ${HOME} && \
+    chown -R $USER:$USER ${HOME} && \
+    echo "Creating Docker image for user : $USER"
 
 ENV BASE_DIR="${HOME}"
-ENV TOOLS_DIR="${BASE_DIR}/tools"
-ENV LIB_DIR="${BASE_DIR}/lib"
-ENV LINUX_DIR="${BASE_DIR}/linux"
-ENV LLVM="/usr/local/llvm"
-ENV QEMU_INSTALL_DIR="${TOOLS_DIR}/qemu"
-ENV QEMU_IMGS_DIR="${QEMU_INSTALL_DIR}/imgs"
-ENV QEMU="${QEMU_INSTALL_DIR}/bin/qemu-system-aarch64"
-ENV LOCAL_SYSROOT="${LIB_DIR}/app-sysroot"
+ENV WORKSPACE="${BASE_DIR}/mnt/workspace"
+ENV TOOLS_DIR="/usr/local/mnt/tools"
 
-RUN mkdir -p ${BASE_DIR}/utils ${BASE_DIR}/core-utils ${TOOLS_DIR}/src ${BASE_DIR}/hyp && touch ${TOOLS_DIR}/.tools-env
+# Set version, so that we can take action for updates
+ARG ENV_VER=""
+ENV ENV_VERSION=$ENV_VER
+
+RUN mkdir -p ${BASE_DIR}/utils ${BASE_DIR}/core-utils
+
+# Copy core utils (used to build docker image) files from host machine.
+COPY --chown=$USER:$USER ./utils/* "${BASE_DIR}/utils/"
+COPY --chown=$USER:$USER ./core-utils/* "${BASE_DIR}/core-utils/"
+
+# Add tools paths to search path
+ENV PATH="${PATH}:${BASE_DIR}/utils:${BASE_DIR}/core-utils"
 
 WORKDIR ${BASE_DIR}
 
-RUN echo "Creating Docker image for user : $USER"
-
-# Copy core utils (used to build docker image) files from host machine.
-# This might increase chances of using cached docker image if these files didn't change
-COPY --chown=$USER:$USER ./core-utils/* "${BASE_DIR}/core-utils/"
-
-# Build LLVM for aarch64 target with musl libc
-RUN ${BASE_DIR}/core-utils/clone-llvm.sh
-RUN ${BASE_DIR}/core-utils/build-llvm.sh
-
-# Add LLVM install path to search path
-ENV PATH="${PATH}:${LLVM}/bin:${BASE_DIR}/utils:${BASE_DIR}/core-utils:${BASE_DIR}/tools/qemu/bin"
-
 ## Since all files/dirs created so far are owned by root, change the permissions/owner
 RUN touch "${HOME}/.bashrc" && \
-    chown -R $USER:$USER "${BASE_DIR}"
+    chown -R $USER:$USER "${BASE_DIR}" && \
+    ln -s python3 /usr/bin/python
 
 # Switch to user account
 USER "$USER"
 
-# Build qemu aarch64 simulator
-RUN ${BASE_DIR}/core-utils/clone-qemu.sh
-RUN ${BASE_DIR}/core-utils/build-qemu.sh
-
-# Prepare Python virtual env
-RUN ${BASE_DIR}/core-utils/build-py-vdev.sh
-
-# Build apps-sysroot
-RUN ${BASE_DIR}/core-utils/clone-qcbor-dtc.sh
-RUN ${BASE_DIR}/core-utils/build-sysroot.sh
-
-# Build upstream linux and ramdisk
-RUN mkdir ${BASE_DIR}/linux
-RUN ${BASE_DIR}/core-utils/clone-linux.sh
-RUN ${BASE_DIR}/core-utils/build-linux.sh
-RUN ${BASE_DIR}/core-utils/build-ramdisk.sh
-
-# Copy utils files from host machine.
-COPY ./utils/* "${BASE_DIR}/utils/"
-
-## Copy files to useful folders
-RUN cp ${BASE_DIR}/core-utils/build-linux.sh  ${BASE_DIR}/linux/ && \
-    cp ${BASE_DIR}/utils/kern-test.sh ${TOOLS_DIR}/qemu/  && \
-    cp ${BASE_DIR}/utils/run-qemu.sh  ${TOOLS_DIR}/qemu/  && \
-    cp ${BASE_DIR}/utils/clone-gunyah.sh  ${BASE_DIR}/hyp/  && \
-    cp ${BASE_DIR}/utils/build-gunyah.sh  ${BASE_DIR}/hyp/  && \
-    cp ${BASE_DIR}/utils/gdb-start.sh  ${BASE_DIR}/hyp/
-
-## Add any scripts generated env updates to .bashrc
-RUN echo "" >> "${HOME}/.bashrc" && \
-    cat ${TOOLS_DIR}/.tools-env >> "${HOME}/.bashrc"
+## Add any volume based environment scripts env updates to .bashrc
+RUN echo ""                                           >> "${HOME}/.bashrc" && \
+    echo 'if [[ -f ${TOOLS_DIR}/.tools-env ]] ; then' >> "${HOME}/.bashrc" && \
+    echo '	source ${TOOLS_DIR}/.tools-env'       >> "${HOME}/.bashrc" && \
+    echo '	#echo \"sourced from ${TOOLS_DIR}/.tools-env\"' >> "${HOME}/.bashrc" && \
+    echo "fi"                                         >> "${HOME}/.bashrc" && \
+    echo                                           "" >> "${HOME}/.bashrc" && \
+    echo 'if [[ -f ${WORKSPACE}/.wsp-env ]] ; then'   >> "${HOME}/.bashrc" && \
+    echo '	source ${WORKSPACE}/.wsp-env'         >> "${HOME}/.bashrc" && \
+    echo '	#echo \"sourced from ${WORKSPACE}/.wsp-env\"' >> "${HOME}/.bashrc" && \
+    echo "fi"                                         >> "${HOME}/.bashrc" && \
+    echo                                           "" >> "${HOME}/.bashrc"
 
 ## Add any .bashrc user customizations to .bashrc
 COPY bashrc-extn .

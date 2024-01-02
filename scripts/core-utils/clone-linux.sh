@@ -6,27 +6,20 @@
 
 set -e
 
-env_check() {
-    if [ -z "$1" ]; then
-        echo -e "\n$1 is not set"
-        exit 1
-    fi
-}
+if [[ -z "${LINUX_DIR}" ]]; then
+	echo "LINUX_DIR location not provided"
+	return
+fi
 
-checkenv_dir() {
-    DIR=`printenv $1`
-    if [[ ! -d "$DIR" ]]; then
-        echo -e "Directory Doesn't Exists : $DIR"
-        exit 1
-    fi
-}
-
-
-env_check BASE_DIR && checkenv_dir BASE_DIR
-
-echo -e "\nLINUX_DIR : ${LINUX_DIR}"
+echo -e "\nClone linux sources to LINUX_DIR : ${LINUX_DIR}"
 
 mkdir -p ${LINUX_DIR}/src
+
+if [[ -d ${LINUX_DIR}/src/linux ]]; then
+	echo "Linux folder already exists..!!"
+	return
+fi
+
 cd ${LINUX_DIR}/src
 
 # LINUX
@@ -37,7 +30,7 @@ git clone \
     -b ${LINUX_VER}  \
     https://github.com/torvalds/linux.git   || {
 	echo "Unable to clone Linux"
-	exit 1
+	return
     }
 
 # Enable Gunyah drivers in linux, static linking for now
@@ -76,16 +69,4 @@ echo "CONFIG_GUNYAH_IRQFD=y" >> ./arch/arm64/configs/gunyah.config
 echo "CONFIG_GUNYAH_IOEVENTFD=y" >> ./arch/arm64/configs/gunyah.config
 echo "Created gunyah.config"
 
-cd ${LINUX_DIR}
-
-# RAMDISK
-echo -e "\nDownloading Busybox:"
-wget -c https://busybox.net/downloads/busybox-1.33.0.tar.bz2  || {
-	echo "Unable to Download busybox"
-	exit 1
-    }
-
-tar xf busybox-1.33.0.tar.bz2   || {
-	echo "Unable to Uncompress busybox"
-	exit 1
-    }
+echo "Linux kernel clone and gunyah config completed"

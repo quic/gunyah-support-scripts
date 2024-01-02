@@ -8,13 +8,13 @@ set -e
 
 if [[ -z "$LOCAL_SYSROOT" ]]; then
     echo "LOCAL_SYSROOT is not found"
-    exit 1
+    return
 fi
 
 if [[ $# -eq 0 ]]; then
     PLATFORM=qemu
     echo "Building qemu as default platform"
-    #exit 1
+    #return
 else
     PLATFORM=$1
 fi
@@ -25,7 +25,7 @@ if [ ! -z $2 ]; then
 		CLEAN=1
 	else
 		echo "Second argument should be clean or not provided"
-		exit 1
+		return
 	fi
 fi
 

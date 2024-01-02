@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# © 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+# Â© 2023 Qualcomm Innovation Center, Inc. All rights reserved.
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
@@ -11,7 +11,7 @@ if [[ $# -lt 1 ]]; then
 	echo -e "Usage: $(basename $0) [options] <Image file name>"
 	echo -e "Options:"
 	echo -e "\t -f|--folder  path : Folder path to mount on"
-	exit 1;
+	return
 fi
 
 eval set -- "$VALID_ARGS"
@@ -33,12 +33,12 @@ mkdir -p $MOUNT_FOLDER
 
 if [[ $# -eq 0 ]]; then
     >&2 echo "Need image file as argument"
-    exit 1
+    return
 fi
 
 if [[ ! -f $1 ]]; then
     >&2 echo "Image file $1 not found"
-    exit 1
+    return
 fi
 
 FILE_TYPE=`file $1`

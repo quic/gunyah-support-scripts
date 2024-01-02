@@ -6,26 +6,22 @@
 
 set -e
 
-env_check() {
-    if [ -z "$1" ]; then
-        echo -e "\n$1 is not set"
-        exit 1
-    fi
-}
+if [[ -z "${LINUX_DIR}" ]]; then
+	echo "LINUX_DIR location not provided"
+	return
+fi
 
-checkenv_dir() {
-    DIR=`printenv $1`
-    if [[ ! -d "$DIR" ]]; then
-        echo -e "Directory Doesn't Exists : $DIR"
-        exit 1
-    fi
-}
+KERNEL_IMAGE_FILE=${LINUX_DIR}/build/arch/arm64/boot/Image
+
+if [[ -f ${KERNEL_IMAGE_FILE} ]]; then
+    echo "Linux kernel is already built, skipping building again..."
+    echo "to rebuild again, delete the kernel image file : ${KERNEL_IMAGE_FILE} and rebuild"
+    return
+fi
 
 ADDITIONAL_KERNEL_CONFIGS=" "
 
-env_check BASE_DIR && checkenv_dir BASE_DIR
-
-echo -e "\nLINUX_DIR : ${LINUX_DIR}"
+echo -e "\nBuild linux from LINUX_DIR : ${LINUX_DIR}"
 
 mkdir -p ${LINUX_DIR}/build
 cd ${LINUX_DIR}/src/linux
@@ -44,6 +40,6 @@ make ARCH=arm64 O=${LINUX_DIR}/build CROSS_COMPILE=aarch64-linux-gnu- defconfig 
 make ARCH=arm64 O=${LINUX_DIR}/build CROSS_COMPILE=aarch64-linux-gnu- -j${CPU_CNT}
 
 if [[ ! -z "${QEMU_IMGS_DIR}" ]]; then
-    cp ${LINUX_DIR}/build/arch/arm64/boot/Image ${QEMU_IMGS_DIR}
-    echo "Copied Linux kernel Image to ${QEMU_IMGS_DIR}"
+    cp ${LINUX_DIR}/build/arch/arm64/boot/Image "${QEMU_IMGS_DIR}/"
+    echo "Copied Linux kernel Image to ${QEMU_IMGS_DIR}/"
 fi
