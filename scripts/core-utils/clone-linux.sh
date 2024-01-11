@@ -58,7 +58,8 @@ echo "Installed b4 to ${LINUX_DIR}/tools/b4"
 
 cd ${LINUX_DIR}/src/linux
 
-${LINUX_DIR}/tools/b4/b4.sh shazam https://lore.kernel.org/all/20230613172054.3959700-1-quic_eberman@quicinc.com/
+# Latest version of the patches do not support crosvm, so pick v14 instead
+${LINUX_DIR}/tools/b4/b4.sh shazam -v 14 https://lore.kernel.org/all/20230613172054.3959700-1-quic_eberman@quicinc.com/
 echo "Applied gunyah drivers patch successfully"
 
 echo "Generate gunyah.config"

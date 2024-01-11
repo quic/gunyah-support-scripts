@@ -124,7 +124,7 @@ RUN echo ""                                           >> "${HOME}/.bashrc" && \
     echo                                           "" >> "${HOME}/.bashrc"
 
 ## Add any .bashrc user customizations to .bashrc
-COPY bashrc-extn .
+COPY --chown=$USER:$USER bashrc-extn .
 RUN cat bashrc-extn >> "${HOME}/.bashrc"  &&  rm -f bashrc-extn
 
 CMD /bin/bash

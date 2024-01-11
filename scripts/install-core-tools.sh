@@ -23,7 +23,8 @@ fi
 
 if [[ ! -d ${TOOLS_DIR} ]]; then
     echo "Creating tools mount folder"
-    mkdir -p ${TOOLS_DIR}
+    sudo mkdir -p ${TOOLS_DIR}
+    sudo chown $USER:$USER ${TOOLS_DIR}
 
     touch ${TOOLS_DIR}/.tools-env
     chmod 0775 ${TOOLS_DIR}/.tools-env

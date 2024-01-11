@@ -75,7 +75,7 @@ echo "Now preparing Linaro stock rootfs image"
 ROOTFS_LINARO_STOCK="${ROOTFS_BASE}/linaro-stock"
 LINARO_ROOTFS_IMAGE_FILE_NAME=initramfs-tiny-image-qemuarm64-20230321073831-1379.rootfs.ext4
 LINARO_ROOTFS_IMAGE=${LINARO_ROOTFS_IMAGE_FILE_NAME}.gz
-LINARO_ROOTGS_URL=https://snapshots.linaro.org/member-builds/qcomlt/testimages/arm64/1379
+LINARO_ROOTFS_URL=https://snapshots.linaro.org/member-builds/qcomlt/testimages/arm64/1379
 
 if [[ -d ${ROOTFS_REFERENCE_DIR}/etc/systemd/system ]]; then
 	echo "Reference folder already exists in ${ROOTFS_REFERENCE_DIR}"
@@ -88,7 +88,7 @@ else
 
 	# Download the rootfs image $LINARO_ROOTFS_IMAGE from linaro website
 	if [[ ! -f  ${ROOTFS_LINARO_STOCK}/${LINARO_ROOTFS_IMAGE_FILE_NAME} ]]; then
-		wget ${LINARO_ROOTGS_URL}/${LINARO_ROOTFS_IMAGE}
+		wget ${LINARO_ROOTFS_URL}/${LINARO_ROOTFS_IMAGE}
 
 		echo "Download completed, decompressing the image"
 
