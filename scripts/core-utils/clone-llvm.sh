@@ -11,7 +11,7 @@ echo -e "\nLLVM TOOLS_DIR : $TOOLS_DIR"
 TOOLS_SRC_DIR=$TOOLS_DIR/src
 LLVM_TOOLS_SRC_DIR=${TOOLS_SRC_DIR}/llvm-tools
 
-if [[ ! -d ${LLVM_TOOLS_SRC_DIR} ]] ; then
+if [[ ! -d "${LLVM_TOOLS_SRC_DIR}/llvm-project" ]] ; then
 
 	mkdir -p ${LLVM_TOOLS_SRC_DIR}
 	cd ${LLVM_TOOLS_SRC_DIR}
