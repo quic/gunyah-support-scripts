@@ -173,7 +173,7 @@ if [[ ! -f ${SVM_DESTINATION}/svm.sh ]]; then
 	echo -e '#!/bin/sh\n\n/usr/gunyah/crosvm --no-syslog run --disable-sandbox \\'  > ./svm.sh
 	echo -e '--serial=type=stdout,hardware=virtio-console,console,stdin,num=1 \\' >> ./svm.sh
 	echo -e '--serial=type=stdout,hardware=serial,earlycon,num=1 \\' >> ./svm.sh
-	echo -e '--initrd /usr/gunyah/initrd.img  --no-balloon --no-rng \\' >> ./svm.sh
+	echo -e '--initrd /usr/gunyah/initrd.img --no-rng \\' >> ./svm.sh
 	echo -e '--params "rw root=/dev/ram rdinit=/sbin/init earlyprintk=serial panic=0" \\' >> ./svm.sh
 	echo -e ' /usr/gunyah/Image $@\n' >> ./svm.sh
 
@@ -212,45 +212,50 @@ if [[ ! -f ${ROOTFS_REFERENCE_DIR}/lib/libgcc_s.so.1 ]]; then
 		git config --global color.ui auto
 	fi
 
-	ROOTFS_IMAGE_TO_BUILD="rpb-console-image"
+	ROOTFS_IMAGE_TO_BUILD="libgcc"
 	export MACHINE=qemuarm64
 	export DISTRO=rpb
 
-	mkdir ${ROOTFS_BASE}/oe-rpb
-	cd ${ROOTFS_BASE}/oe-rpb
+	if [[ ! -d ${ROOTFS_BASE}/oe-rpb ]]; then
+		mkdir ${ROOTFS_BASE}/oe-rpb
+		cd ${ROOTFS_BASE}/oe-rpb
 
-	# fetch
-	~/bin/repo init -u https://github.com/96boards/oe-rpb-manifest.git -b qcom/master
-	~/bin/repo sync
+		# fetch
+		~/bin/repo init -u https://github.com/96boards/oe-rpb-manifest.git -b qcom/styhead
+		~/bin/repo sync
+	else
+		cd ${ROOTFS_BASE}/oe-rpb
+	fi
 
 	# add config for libgcc and other virtualization options
 	echo -e "\n" > ./extra_local.conf
-	echo "INHERIT += 'buildstats buildstats-summary'" >> ./extra_local.conf
-	echo "PREFERRED_PROVIDER_virtual/kernel = 'linux-dummy'" >> ./extra_local.conf
-	echo "PREFERRED_PROVIDER_android-tools-conf = 'android-tools-conf-configfs'" >> ./extra_local.conf
-	echo "CORE_IMAGE_EXTRA_INSTALL += 'openssh libgcc'" >> ./extra_local.conf
-	echo "PACKAGE_INSTALL:append = ' openssh libgcc'" >> ./extra_local.conf
-	echo "DISTRO_FEATURES:append = ' virtualization'" >> ./extra_local.conf
-	echo -e "\n" >> ./extra_local.conf
-
-	echo -e "\n\n" > ./bblayers.conf
-
+	echo "DISTRO ?= 'rpb'" >> ./extra_local.conf
+	echo "CORE_IMAGE_EXTRA_INSTALL = 'libgcc'" >> ./extra_local.conf
 
 	source setup-environment build
 
 	cat ../extra_local.conf >> conf/local.conf
-	cat ../bblayers.conf >> conf/bblayers.conf
+	sed -i '/meta-xfce/d' conf/bblayers.conf
+	sed -i '/meta-initramfs/d' conf/bblayers.conf
+	sed -i '/meta-multimedia/d' conf/bblayers.conf
+	sed -i '/meta-webserver/d' conf/bblayers.conf
+	sed -i '/meta-perl/d' conf/bblayers.conf
+	sed -i '/meta-chromium/d' conf/bblayers.conf
+	sed -i '/meta-clang/d' conf/bblayers.conf
+	sed -i '/meta-qcom/d' conf/bblayers.conf
 
 	echo '"Dumping local.conf.."'
 	cat conf/local.conf
+	echo '"Dumping bblayers.conf.."'
+	cat conf/bblayers.conf
 
 	bitbake -e > bitbake-environment
 
-	bitbake ${ROOTFS_IMAGE_TO_BUILD}
+	bitbake -f ${ROOTFS_IMAGE_TO_BUILD}
 
 	# Completed the build. The file libgcc_s.so.1 should be available at path
-	# ${ROOTFS_BASE}/oe-rpb/build/tmp-rpb-glibc/sysroots-components/cortexa57/libgcc/usr/lib/libgcc_s.so.1
-	LIBGCC_OUT_PATH="build/tmp-rpb-glibc/sysroots-components/cortexa57/libgcc/usr/lib"
+	# ${ROOTFS_BASE}/oe-rpb/build/tmp-rpb/sysroots-components/cortexa57/libgcc/usr/lib/libgcc_s.so.1
+	LIBGCC_OUT_PATH="build/tmp-rpb/sysroots-components/cortexa57/libgcc/usr/lib"
 
 	sudo cp ${ROOTFS_BASE}/oe-rpb/${LIBGCC_OUT_PATH}/libgcc_s.so.1 ${ROOTFS_REFERENCE_DIR}/lib
 	sudo chmod 0755 ${ROOTFS_REFERENCE_DIR}/lib/libgcc_s.so.1
@@ -258,6 +263,41 @@ if [[ ! -f ${ROOTFS_REFERENCE_DIR}/lib/libgcc_s.so.1 ]]; then
 	rm -rf ${ROOTFS_BASE}/oe-rpb
 fi
 
+echo "check glibc "
+GLIBC_VER_3x=$(strings ${ROOTFS_REFERENCE_DIR}/lib/libc.so.6 | grep "GLIBC_2.3")
+echo "check glibc GLIBC_VER_3x : ${GLIBC_VER_3x}"
+if [[ ! ${GLIBC_VER_3x} =~ "GLIBC_2.38" ]]; then
+	echo "start build GLIBC_2.38"
+	cd ${ROOTFS_BASE}
+
+	if [[ ! -d $ROOTFS_BASE/glibc-2.38-br-out ]]; then
+		if [[ ! -d $ROOTFS_BASE/glibc-2.38 ]]; then
+			wget https://ftp.gnu.org/gnu/glibc/glibc-2.38.tar.gz
+			tar -xvf glibc-2.38.tar.gz
+		fi
+
+		cd glibc-2.38
+
+		rm -rf build-aarch64
+		mkdir build-aarch64
+		cd build-aarch64
+		CC=aarch64-linux-gnu-gcc
+		CXX=aarch64-linux-gnu-g++
+
+		../configure \
+		--host=aarch64-linux-gnu \
+		--build=aarch64-linux-gnu \
+		--prefix=$ROOTFS_BASE/glibc-2.38-br-out
+
+		make
+		make install
+	fi
+
+	sudo cp -vf $ROOTFS_BASE/glibc-2.38-br-out/lib/libc.so.6 $ROOTFS_REFERENCE_DIR/lib/
+
+else
+    echo "GLIBC_2.38 exist . pass ...."
+fi
 echo "Successfully created the reference files folder for rootfs image at : `pwd`"
 
 # -----------------------------------------------------------------------------

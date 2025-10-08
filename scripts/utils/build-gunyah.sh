@@ -35,7 +35,7 @@ if [[ -f ./${PLATFORM}/hypvm.elf ]]; then
 fi
 
 if [[ ${PLATFORM} == "qemu" ]]; then
-	FEATURE=gunyah-rm-qemu
+	FEATURE=gunyah-baseline
 fi
 
 QUALITY=debug
@@ -63,7 +63,7 @@ $LLVM/bin/llvm-strip -d build/${PLATFORM}/${QUALITY}/resource-manager.strip.elf
 cd ../musl-c-runtime
 echo "./configure.py platform=${PLATFORM} featureset=${FEATURE} quality=${QUALITY} ; ninja"
 ./configure.py platform=${PLATFORM} featureset=${FEATURE} quality=${QUALITY} ; ninja
-cp build/runtime build/runtime.strip.elf
+cp build/debug/runtime build/runtime.strip.elf
 $LLVM/bin/llvm-strip -d build/runtime.strip.elf
 
 cd ..
@@ -90,7 +90,7 @@ if [[ -f ${PLATFORM}/hypvm.elf ]]; then
     fi
 fi
 
-CRT_ENTP=`readelf -e -W musl-c-runtime/build/runtime | grep "Entry point address" | cut -d ':' -f 2 |  tr -d "[:space:]"`
+CRT_ENTP=`readelf -e -W musl-c-runtime/build/debug/runtime | grep "Entry point address" | cut -d ':' -f 2 |  tr -d "[:space:]"`
 echo "C Runtime entry point :           ${CRT_ENTP}"
 
 RM_ENTP=`readelf -e -W resource-manager/build/qemu/debug/resource-manager | grep "Entry point address" | cut -d ':' -f 2 |  tr -d "[:space:]"`
