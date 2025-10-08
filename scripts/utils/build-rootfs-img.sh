@@ -272,7 +272,7 @@ if [[ ! ${GLIBC_VER_3x} =~ "GLIBC_2.38" ]]; then
 
 	if [[ ! -d $ROOTFS_BASE/glibc-2.38-br-out ]]; then
 		if [[ ! -d $ROOTFS_BASE/glibc-2.38 ]]; then
-			wget https://ftp.gnu.org/gnu/glibc/glibc-2.38.tar.gz
+			wget https://mirrors.kernel.org/gnu/glibc/glibc-2.38.tar.gz
 			tar -xvf glibc-2.38.tar.gz
 		fi
 
