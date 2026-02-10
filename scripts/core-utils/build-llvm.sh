@@ -54,6 +54,7 @@ echo "Done building LLVM, installed at ${LLVM_INSTALL_DIR}"
 popd
 
 LLVM_VERSION=$(${LLVM_SRC_DIR}/llvm/build/bin/llvm-config --version | tr -d git)
+LLVM_VERSION_MAJOR="${LLVM_VERSION%%.*}"
 
 
 echo "LLVM_VERSION : ${LLVM_VERSION}"
@@ -108,7 +109,7 @@ cmake .. \
 	-DCOMPILER_RT_DEFAULT_TARGET_ONLY=ON \
 	-DLLVM_CONFIG_PATH=${LLVM_SRC_DIR}/llvm/build/bin/llvm-config \
 	-DCMAKE_BUILD_TYPE=Release \
-	-DCMAKE_INSTALL_PREFIX=${LLVM_INSTALL_DIR}/lib/clang/${LLVM_VERSION}/ &&
+	-DCMAKE_INSTALL_PREFIX=${LLVM_INSTALL_DIR}/lib/clang/${LLVM_VERSION_MAJOR}/ &&
 	ninja -j${CPU_CNT} &&
 	ninja install || {
        		echo "Failed to install runtime lib to llvm"
