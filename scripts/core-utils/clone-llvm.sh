@@ -20,7 +20,7 @@ if [[ ! -d ${LLVM_TOOLS_SRC_DIR} ]] ; then
 	echo -e "\nCloning LLVM into : ${LLVM_TOOLS_SRC_DIR}"
 	git clone \
 	  --single-branch --depth=1 --progress -c advice.detachedHead=false -b \
-	  release/15.x \
+	  release/21.x \
 	  https://github.com/llvm/llvm-project.git || {
 		echo "Unable to clone LLVM"
 		return
