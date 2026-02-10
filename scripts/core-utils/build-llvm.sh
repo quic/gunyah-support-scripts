@@ -94,6 +94,8 @@ cmake .. \
 	-DCMAKE_ASM_COMPILER_TARGET=aarch64-linux-gnu \
 	-DCMAKE_C_COMPILER=${LLVM_INSTALL_DIR}/bin/clang \
 	-DCMAKE_C_COMPILER_TARGET=aarch64-linux-gnu \
+	-DCMAKE_CXX_COMPILER_TARGET=aarch64-linux-gnu \
+	-DCMAKE_CXX_COMPILER=${LLVM_INSTALL_DIR}/bin/clang \
 	-DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld" \
 	-DCMAKE_NM=${LLVM_INSTALL_DIR}/bin/llvm-nm \
 	-DCMAKE_RANLIB=${LLVM_INSTALL_DIR}/bin/llvm-ranlib \
