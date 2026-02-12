@@ -73,7 +73,10 @@ RUN apt-get install -y \
     locales \
     chrpath diffstat file gawk lz4 zstd \
 # Repos dependencies
-    python3-venv
+    python3-venv \
+# Buildroot dependencies
+    rsync \
+    unzip
 
 RUN locale-gen en_US.UTF-8  && \
     dpkg-reconfigure locales

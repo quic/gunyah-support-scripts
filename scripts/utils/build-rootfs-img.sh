@@ -20,12 +20,36 @@ set -e
 #
 #   Download and build:
 #     crosvm : User space VMM running Host HLOS
-#     initramfs-*rootfs.ext4.gz : Stock linaro rootfs extfs image used as base
+#     buildroot : Simple root filesystem based on buildroot
 #     libgcc_s.so.1 : dependency for crosvm, built using bitbake from Open
 #                     Embedded rpb image.
 #                     This could use some optimization to just build one image
 #                     instead of the whole package
 # ----------------------------------------------------------------------------
+
+readyn() {
+	local prompt="${1}"
+	local default="${2:-y}"
+	local suffix="[y/n]"
+	local reply
+
+	default="${default,,}"
+	[[ "$default" != "y" && "$default" != "n" ]] && default="y"
+	suffix="${suffix^^$default}"
+
+	while :; do
+		read -r -p "$prompt $suffix " reply
+		[[ -z "$reply" ]] && reply="$default"
+		case "$reply" in
+			y|Y)
+				return 0
+			;;
+			n|N)
+				return 1
+			;;
+		esac
+	done
+}
 
 IN_ERROR="NO"
 
@@ -68,53 +92,47 @@ cd ${ROOTFS_BASE}
 
 
 # ----------------------------------------------------------------------------
-# Linaro stock rootfs image
+# rootfs image
 
-echo "Now preparing Linaro stock rootfs image"
+echo "Now preparing buildroot rootfs image"
 
-ROOTFS_LINARO_STOCK="${ROOTFS_BASE}/linaro-stock"
-LINARO_ROOTFS_IMAGE_FILE_NAME=initramfs-tiny-image-qemuarm64-20230321073831-1379.rootfs.ext4
-LINARO_ROOTFS_IMAGE=${LINARO_ROOTFS_IMAGE_FILE_NAME}.gz
-LINARO_ROOTFS_URL=https://snapshots.linaro.org/member-builds/qcomlt/testimages/arm64/1379
-
-if [[ -d ${ROOTFS_REFERENCE_DIR}/etc/systemd/system ]]; then
+if [[ -d ${ROOTFS_REFERENCE_DIR}/bin/busybox ]]; then
 	echo "Reference folder already exists in ${ROOTFS_REFERENCE_DIR}"
 else
-	mkdir -p ${ROOTFS_LINARO_STOCK}
+	BUILDROOT_DIR="${ROOTFS_BASE}/buildroot"
+	BUILDROOT_DEFCONFIG="gunyah_pvm_defconfig"
+	BUILDROOT_ROOTFS="${BUILDROOT_DIR}/output/images/rootfs.tar"
 
-	cd ${ROOTFS_LINARO_STOCK}
+	if [[ ! -e "${BUILDROOT_ROOTFS}" ]]; then
+		BUILDROOT_GIT=https://gitlab.com/buildroot.org/buildroot.git
+		BUILDROOT_TAG=2025.11.1
 
-	echo "Now downloading Linaro reference rootfs image"
+		if [[ ! -e "${BUILDROOT_DIR}" ]]; then
+			echo "Now checking out buildroot ${BUILDROOT_TAG}"
+			git clone ${BUILDROOT_GIT} --depth=1 -b ${BUILDROOT_TAG} "${BUILDROOT_DIR}"
+		fi
 
-	# Download the rootfs image $LINARO_ROOTFS_IMAGE from linaro website
-	if [[ ! -f  ${ROOTFS_LINARO_STOCK}/${LINARO_ROOTFS_IMAGE_FILE_NAME} ]]; then
-		wget ${LINARO_ROOTFS_URL}/${LINARO_ROOTFS_IMAGE}
-
-		echo "Download completed, decompressing the image"
-
-		# Decompress the image LINARO_ROOTFS_IMAGE as LINARO_ROOTFS_IMAGE_FILE_NAME
-		gunzip ${LINARO_ROOTFS_IMAGE}
+		if [[ ! -e "${BUILDROOT_DIR}/.config" ]]; then
+			echo "Building ${BUILDROOT_DEFCONFIG}"
+			cp "${BASE_DIR}/share/${BUILDROOT_DEFCONFIG}" "${BUILDROOT_DIR}/configs/"
+			cd "${BUILDROOT_DIR}"
+			make "${BUILDROOT_DEFCONFIG}"
+		fi
 	fi
 
-	# It would be nice if resize works, but newer e2fsck is needed TBD later!!
-	#resize2fs initramfs-tiny-image-qemuarm64-20230321073831-1379.rootfs.ext4 512M
-	#e2fsck -f initramfs-tiny-image-qemuarm64-20230321073831-1379.rootfs.ext4
+	cd "${BUILDROOT_DIR}"
 
-	echo "Decompression completed, mount the image to ${ROOTFS_LINARO_STOCK}/mnt"
+	if readyn "Run make menuconfig to make changes to the rootfs?" "n" ; then
+		make menuconfig
+	fi
 
-	mkdir -p ${ROOTFS_LINARO_STOCK}/mnt
-
-	# mount the Linaro stock rootfs image to extract all the files
-	sudo mount -o loop ${LINARO_ROOTFS_IMAGE_FILE_NAME}  ${ROOTFS_LINARO_STOCK}/mnt
+	make
 
 	echo "Copy the file tree to reference tree"
-
-	sudo cp -r -v -p ${ROOTFS_LINARO_STOCK}/mnt/*   ${ROOTFS_REFERENCE_DIR}
-
-	sudo umount ${ROOTFS_LINARO_STOCK}/mnt
+	sudo tar -xvpSf "${BUILDROOT_ROOTFS}" -C "${ROOTFS_REFERENCE_DIR}"
 
 	# Retain if needed later
-	#rm -rf ${ROOTFS_LINARO_STOCK}
+	# rm -rf "${BUILDROOT_DIR}"
 fi
 
 # ----------------------------------------------------------------------------
@@ -183,122 +201,6 @@ if [[ ! -f ${SVM_DESTINATION}/svm.sh ]]; then
 fi
 
 echo "Completed copying crosvm and SVM kernel files to rootfs reference tree"
-
-
-# ----------------------------------------------------------------------------
-# Generate and copy libgcc_s.so.1 file
-
-# crosvm has dependency on libgcc_s.so.1 file. For now a very long approach is
-# taken to generate this file, but we can optimize this step later to use the
-# required recipe only to generate this binary
-
-# Following Reference commands are derived from files fetch.log, build.log at
-# https://snapshots.linaro.org/member-builds/qcomlt/testimages/arm64/1379/
-
-if [[ ! -f ${ROOTFS_REFERENCE_DIR}/lib/libgcc_s.so.1 ]]; then
-	if [[ ! -f ~/bin/repo ]]; then
-		echo "Installing repo into local bin folder"
-		mkdir -p ~/bin
-		#export PATH=~/bin:$PATH
-		#echo "$PATH"
-		curl http://commondatastorage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
-		chmod a+x ~/bin/repo
-	fi
-
-	if [[ ! -f ~/.gitconfig ]]; then
-		echo "Warning: setting the git global config to default values..!!"
-		git config --global user.name "$USER"
-		git config --global user.email "$USER@local.com"
-		git config --global color.ui auto
-	fi
-
-	ROOTFS_IMAGE_TO_BUILD="libgcc"
-	export MACHINE=qemuarm64
-	export DISTRO=rpb
-
-	if [[ ! -d ${ROOTFS_BASE}/oe-rpb ]]; then
-		mkdir ${ROOTFS_BASE}/oe-rpb
-		cd ${ROOTFS_BASE}/oe-rpb
-
-		# fetch
-		~/bin/repo init -u https://github.com/96boards/oe-rpb-manifest.git -b qcom/styhead
-		~/bin/repo sync
-	else
-		cd ${ROOTFS_BASE}/oe-rpb
-	fi
-
-	# add config for libgcc and other virtualization options
-	echo -e "\n" > ./extra_local.conf
-	echo "DISTRO ?= 'rpb'" >> ./extra_local.conf
-	echo "CORE_IMAGE_EXTRA_INSTALL = 'libgcc'" >> ./extra_local.conf
-
-	source setup-environment build
-
-	cat ../extra_local.conf >> conf/local.conf
-	sed -i '/meta-xfce/d' conf/bblayers.conf
-	sed -i '/meta-initramfs/d' conf/bblayers.conf
-	sed -i '/meta-multimedia/d' conf/bblayers.conf
-	sed -i '/meta-webserver/d' conf/bblayers.conf
-	sed -i '/meta-perl/d' conf/bblayers.conf
-	sed -i '/meta-chromium/d' conf/bblayers.conf
-	sed -i '/meta-clang/d' conf/bblayers.conf
-	sed -i '/meta-qcom/d' conf/bblayers.conf
-
-	echo '"Dumping local.conf.."'
-	cat conf/local.conf
-	echo '"Dumping bblayers.conf.."'
-	cat conf/bblayers.conf
-
-	bitbake -e > bitbake-environment
-
-	bitbake -f ${ROOTFS_IMAGE_TO_BUILD}
-
-	# Completed the build. The file libgcc_s.so.1 should be available at path
-	# ${ROOTFS_BASE}/oe-rpb/build/tmp-rpb/sysroots-components/cortexa57/libgcc/usr/lib/libgcc_s.so.1
-	LIBGCC_OUT_PATH="build/tmp-rpb/sysroots-components/cortexa57/libgcc/usr/lib"
-
-	sudo cp ${ROOTFS_BASE}/oe-rpb/${LIBGCC_OUT_PATH}/libgcc_s.so.1 ${ROOTFS_REFERENCE_DIR}/lib
-	sudo chmod 0755 ${ROOTFS_REFERENCE_DIR}/lib/libgcc_s.so.1
-
-	rm -rf ${ROOTFS_BASE}/oe-rpb
-fi
-
-echo "check glibc "
-GLIBC_VER_3x=$(strings ${ROOTFS_REFERENCE_DIR}/lib/libc.so.6 | grep "GLIBC_2.3")
-echo "check glibc GLIBC_VER_3x : ${GLIBC_VER_3x}"
-if [[ ! ${GLIBC_VER_3x} =~ "GLIBC_2.38" ]]; then
-	echo "start build GLIBC_2.38"
-	cd ${ROOTFS_BASE}
-
-	if [[ ! -d $ROOTFS_BASE/glibc-2.38-br-out ]]; then
-		if [[ ! -d $ROOTFS_BASE/glibc-2.38 ]]; then
-			wget https://mirrors.kernel.org/gnu/glibc/glibc-2.38.tar.gz
-			tar -xvf glibc-2.38.tar.gz
-		fi
-
-		cd glibc-2.38
-
-		rm -rf build-aarch64
-		mkdir build-aarch64
-		cd build-aarch64
-		CC=aarch64-linux-gnu-gcc
-		CXX=aarch64-linux-gnu-g++
-
-		../configure \
-		--host=aarch64-linux-gnu \
-		--build=aarch64-linux-gnu \
-		--prefix=$ROOTFS_BASE/glibc-2.38-br-out
-
-		make
-		make install
-	fi
-
-	sudo cp -vf $ROOTFS_BASE/glibc-2.38-br-out/lib/libc.so.6 $ROOTFS_REFERENCE_DIR/lib/
-
-else
-    echo "GLIBC_2.38 exist . pass ...."
-fi
-echo "Successfully created the reference files folder for rootfs image at : `pwd`"
 
 # -----------------------------------------------------------------------------
 # Create a extfs device image of required size
