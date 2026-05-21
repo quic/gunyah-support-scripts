@@ -50,8 +50,8 @@ fi
 cd hyp
 echo "./configure.py platform=${PLATFORM} featureset=${FEATURE} quality=${QUALITY} ; ninja"
 ./configure.py platform=${PLATFORM} featureset=${FEATURE} quality=${QUALITY} ; ninja
-cp build/${PLATFORM}/${FEATURE}/${QUALITY}/hyp.elf build/${PLATFORM}/${FEATURE}/${QUALITY}/hyp.strip.elf
-$LLVM/bin/llvm-strip -d build/${PLATFORM}/${FEATURE}/${QUALITY}/hyp.strip.elf
+cp build/${QUALITY}/${PLATFORM}/${FEATURE}/hyp.elf build/${QUALITY}/${PLATFORM}/${FEATURE}/hyp.strip.elf
+$LLVM/bin/llvm-strip -d build/${QUALITY}/${PLATFORM}/${FEATURE}/hyp.strip.elf
 
 cd ../resource-manager
 echo "./configure.py platform=${PLATFORM} featureset=${FEATURE} quality=${QUALITY} ; ninja"
@@ -63,8 +63,8 @@ $LLVM/bin/llvm-strip -d build/${PLATFORM}/${QUALITY}/resource-manager.strip.elf
 cd ../musl-c-runtime
 echo "./configure.py platform=${PLATFORM} featureset=${FEATURE} quality=${QUALITY} ; ninja"
 ./configure.py platform=${PLATFORM} featureset=${FEATURE} quality=${QUALITY} ; ninja
-cp build/debug/runtime build/runtime.strip.elf
-$LLVM/bin/llvm-strip -d build/runtime.strip.elf
+cp build/debug/runtime build/debug/runtime.strip.elf
+$LLVM/bin/llvm-strip -d build/debug/runtime.strip.elf
 
 cd ..
 
@@ -74,8 +74,8 @@ fi
 
 python3 hyp/tools/elf/package_apps.py \
     -a resource-manager/build/${PLATFORM}/debug/resource-manager.strip.elf \
-    -r musl-c-runtime/build/runtime.strip.elf \
-    hyp/build/${PLATFORM}/${FEATURE}/debug/hyp.strip.elf \
+    -r musl-c-runtime/build/debug/runtime.strip.elf \
+    hyp/build/${QUALITY}/${PLATFORM}/${FEATURE}/hyp.strip.elf \
     -o ${PLATFORM}/hypvm.elf
 
 echo "created ${PLATFORM}/hypvm.elf"
@@ -93,5 +93,5 @@ fi
 CRT_ENTP=`readelf -e -W musl-c-runtime/build/debug/runtime | grep "Entry point address" | cut -d ':' -f 2 |  tr -d "[:space:]"`
 echo "C Runtime entry point :           ${CRT_ENTP}"
 
-RM_ENTP=`readelf -e -W resource-manager/build/qemu/debug/resource-manager | grep "Entry point address" | cut -d ':' -f 2 |  tr -d "[:space:]"`
+RM_ENTP=`readelf -e -W resource-manager/build/${PLATFORM}/${QUALITY}/resource-manager | grep "Entry point address" | cut -d ':' -f 2 |  tr -d "[:space:]"`
 echo "Resource Manager entry point :    ${RM_ENTP}"
