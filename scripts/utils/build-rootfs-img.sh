@@ -84,16 +84,33 @@ else
 
 	cd ${ROOTFS_LINARO_STOCK}
 
-	echo "Now downloading Linaro reference rootfs image"
+	echo "The default snapshots.linaro.org download link may not be available."
+	read -p "Do you want to provide a local rootfs image file? (y/n): " use_local
 
-	# Download the rootfs image $LINARO_ROOTFS_IMAGE from linaro website
-	if [[ ! -f  ${ROOTFS_LINARO_STOCK}/${LINARO_ROOTFS_IMAGE_FILE_NAME} ]]; then
-		wget ${LINARO_ROOTFS_URL}/${LINARO_ROOTFS_IMAGE}
-
-		echo "Download completed, decompressing the image"
-
-		# Decompress the image LINARO_ROOTFS_IMAGE as LINARO_ROOTFS_IMAGE_FILE_NAME
-		gunzip ${LINARO_ROOTFS_IMAGE}
+	if [[ "$use_local" =~ ^[Yy]$ ]]; then
+		read -p "Enter full path to local rootfs image file (must be ext4 or ext4.gz): " local_img
+		if [[ ! -f "$local_img" ]]; then
+			echo "Error: File not found: $local_img"
+			exit 1
+		fi
+		# Copy the local file to expected name
+		if [[ "$local_img" == *.gz ]]; then
+			cp "$local_img" ./${LINARO_ROOTFS_IMAGE}
+			echo "Decompressing the image..."
+			gunzip -f ${LINARO_ROOTFS_IMAGE}
+		else
+			# Assume it's an ext4 file; copy directly to the ext4 filename
+			cp "$local_img" ./${LINARO_ROOTFS_IMAGE_FILE_NAME}
+		fi
+	else
+		echo "Attempting to download from ${LINARO_ROOTFS_URL}..."
+		# Download the rootfs image $LINARO_ROOTFS_IMAGE from linaro website
+		if [[ ! -f  ${ROOTFS_LINARO_STOCK}/${LINARO_ROOTFS_IMAGE_FILE_NAME} ]]; then
+			wget ${LINARO_ROOTFS_URL}/${LINARO_ROOTFS_IMAGE}
+			echo "Download completed, decompressing the image"
+			# Decompress the image LINARO_ROOTFS_IMAGE as LINARO_ROOTFS_IMAGE_FILE_NAME
+			gunzip ${LINARO_ROOTFS_IMAGE}
+		fi
 	fi
 
 	# It would be nice if resize works, but newer e2fsck is needed TBD later!!

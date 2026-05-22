@@ -96,6 +96,9 @@ cd ~/gunyah/gunyah-support-scripts/scripts
 ```
 If any errors occur, refer to above pitfalls and remedies. After this script completes successfully the docker image and other volumes are ready to be used.
 
+> NOTICE: In `build-docker-img.sh` it will download Linaro stock rootfs image, but this rootfs image is not available on snapshots.linaro.org. It is better to provide a local rootfs image file, while the script ask.  
+> The local build method please refer to [Build qemuarm64 initramfs](build_qemuarm64_initramfs.md).
+
 --------
 
 ## Launch Docker environment
