@@ -9,6 +9,7 @@ set -e
 if [[ ! -f ./crosvm ]]; then
     echo "Building crosvm from folder `pwd`"
     cd ./crosvm-src
+	mount --make-shared /
     ./tools/dev_container sh -c "cargo build --features gunyah --target aarch64-unknown-linux-gnu --release --no-default-features && cp /scratch/cargo_target/aarch64-unknown-linux-gnu/release/crosvm ."
 
     echo "Completed building crosvm binary, copying to parent folder"
