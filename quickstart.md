@@ -1,8 +1,13 @@
 # Quick Start
 
-Gunyah Hypervisor - Docker based development environment:
+Gunyah supports QEMU (`platform=qemu`) and Arm FVP AEM (`platform=fvp-aem`).
+For native FVP build and boot instructions, see [Getting started with Arm FVP
+AEM](fvp.md). FVP Base RevC 2xAEMvA 11.30.27 was last used for validation on
+November 13, 2026. The Docker scripts do not install FVP or its TF-A firmware.
 
-_The following configuration is tested_
+The instructions below describe the QEMU Docker development environment:
+
+_Reference configuration (Docker with LLVM 22.1.0 has not yet been validated)_
 
 - Linux machine (Ubuntu 20.04)
     - 8GB RAM
@@ -11,17 +16,23 @@ _The following configuration is tested_
 - Docker (20.10)
     - [Installing Docker](https://docs.docker.com/engine/install/)
     - Note, version as reported by ```docker -v```
-- LLVM (15.x) + musl C (1.1)
+- Upstream LLVM (22.1.0) + musl C (1.1)
 - QEMU (7.2)
 - gdb-multiarch (9.2)
+
+The previous Docker configuration was tested with LLVM 15.x. Native FVP builds
+and Linux boot have been validated with an installed Snapdragon LLVM 22.1.0
+build. The public setup uses upstream LLVM 22.1.0; the updated Docker compiler
+build and QEMU flow still need validation.
 
 A Docker container environment containing the above tools is supported. The
 scripts prepare an Ubuntu 22.04 based docker environment, download and build
 LLVM, QEMU, a reference Linux kernel and Busybox ramdisk and a the Python
 virtual environment to ease the development process.
 
-A similar setup may be created without Docker directly on an Ubuntu 22.04
-machine, however this has not been tested.
+A similar QEMU setup may be created without Docker directly on an Ubuntu 22.04
+machine, however this has not been tested. The separate [native FVP
+workflow](fvp.md) has been validated for Linux boot.
 
 --------
 
@@ -94,6 +105,18 @@ Following commands are exected in the host machine terminal
 cd ~/gunyah/gunyah-support-scripts/scripts
 ./build-docker-img.sh
 ```
+
+New toolchain downloads are pinned to `llvmorg-22.1.0`. Existing tools volumes
+are reused when an LLVM installation is already present; updating these scripts
+does not automatically replace an older compiler. Check the installed version
+in the container with:
+
+```sh
+"$LLVM/bin/clang" --version
+```
+
+Prepare a separate tools volume or intentionally rebuild the toolchain when
+upgrading.
 If any errors occur, refer to above pitfalls and remedies. After this script completes successfully the docker image and other volumes are ready to be used.
 
 --------
@@ -186,7 +209,7 @@ The Gunyah hypervisor sources can be cloned from the host machine or from within
 the shared folder.
 
 It is strongly recommended to keep sources on the host machine's filesystem,
-since the sources and binary can be used on host to debug. But the builds need to be done within the docker environment only.
+since the sources and binary can be used on host to debug. For this QEMU workflow, perform builds within the Docker environment.
 
 To clone the sources run the provided script
 
@@ -211,7 +234,9 @@ This script may also be used to clone sources in the shared folder from your hos
 
 The Gunyah image build requires the above three source repositories to have been cloned.
 
-The build script *must be run from within the docker container*.
+For this QEMU workflow, run the build script from within the Docker container.
+Use the [FVP build instructions](fvp.md#build-and-package) for `fvp-aem`;
+`build-gunyah.sh` currently selects a featureset only for `qemu`.
 
 This example assumes that we are building the sources cloned in the shared folder
 ```~/share/gunyah``` as visible from the docker container.
@@ -283,6 +308,9 @@ This page describes how to prepare the host environment and the guest environmen
 --------
 
 # Non-Docker setup
+
+For the validated native FVP host workflow, follow [fvp.md](fvp.md). The
+notes below concern adapting the QEMU Docker setup to a native host.
 
 If for any reason a Docker environment is not preferred, a native host
 environment can be prepared using the same scripts that were used to prepare the
