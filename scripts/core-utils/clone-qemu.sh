@@ -10,6 +10,9 @@ echo -e "\nClone QEMU to TOOLS_DIR : $TOOLS_DIR"
 
 TOOLS_SRC_DIR=${TOOLS_DIR}/src
 
+# Pin libslirp to a release tag; master can fail meson's git-describe version check
+LIBSLIRP_VER=${LIBSLIRP_VER:-v4.9.1}
+
 mkdir -p ${TOOLS_SRC_DIR}
 
 if [[ ! -d ${TOOLS_SRC_DIR}/qemu ]] ; then
@@ -43,5 +46,5 @@ fi
 
 if [[ ! -d ${TOOLS_SRC_DIR}/libslirp ]] ; then
 	# download libslirp to enable networking
-	git clone https://gitlab.freedesktop.org/slirp/libslirp.git
+	git clone --branch ${LIBSLIRP_VER} --depth 1 https://gitlab.freedesktop.org/slirp/libslirp.git
 fi
