@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000..14c2111
 --- /dev/null
 +++ b/Makefile.hyp
-@@ -0,0 +1,64 @@
+@@ -0,0 +1,65 @@
 +QCBOR_INC_PATH = inc
 +SYSROOT_INC_PATH = $(LOCAL_SYSROOT)/include
 +
@@ -35,6 +35,7 @@ index 0000000..14c2111
 +CFLAGS += -g -gdwarf-4 -std=gnu18 -Weverything -Werror
 +CFLAGS += -Wno-covered-switch-default -Wno-c++98-compat -Wno-c++-compat
 +CFLAGS += -Wno-gcc-compat -Wno-undef -Wno-declaration-after-statement
++CFLAGS += -Wno-unsafe-buffer-usage -Wno-shadow-header
 +CFLAGS += -ffunction-sections -fdata-sections -fpie
 +CFLAGS += -DQCBOR_DISABLE_INDEFINITE_LENGTH_ARRAYS
 +CFLAGS += -c -I $(BUILD_INC_PATH)
