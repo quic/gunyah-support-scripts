@@ -4,10 +4,24 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-set -e
+#set -e
+
+cmd_p=$(which podman)
+cmd_d=$(which docker)
+
+if [ ! -z $cmd_p ]; then
+	echo "Use podman ..."
+	cmd=$cmd_p
+elif [ ! -z $cmd_d ]; then
+	echo "Use docker ..."
+	cmd=$cmd_d
+else
+	echo "Error:Please install docker or podman firstly!"
+	exit 1
+fi
 
 # See if we can migrate data from Old docker image if existing
-./check-and-migrate.sh
+./check-and-migrate.sh $cmd
 
 VERSION_SCRIPT=$(dirname "${BASH_SOURCE[0]}")/version.sh
 . ${VERSION_SCRIPT}
@@ -54,7 +68,7 @@ DOCKER_OPTIONS+="  -f ${USE_THIS_DOCKERFILE} "
 DOCKER_OPTIONS+="  -t $CURRENT_DOCKER_IMAGE_TAG"
 
 # Build docker image
-docker $DOCKER_OPTIONS $*
+$cmd $DOCKER_OPTIONS $*
 
 echo -e "\nBuilt or updated the docker image, now installing or configuring Core tools\n"
 

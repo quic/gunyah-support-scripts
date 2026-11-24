@@ -4,7 +4,21 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-set -e
+#set -e
+
+cmd_p=$(which podman)
+cmd_d=$(which docker)
+
+if [ ! -z $cmd_p ]; then
+	echo "Use podman ..."
+	cmd=$cmd_p
+elif [ ! -z $cmd_d ]; then
+	echo "Use docker ..."
+	cmd=$cmd_d
+else
+	echo "Error:Please install docker or podman firstly!"
+	exit 1
+fi
 
 VERSION_SCRIPT=$(dirname "${BASH_SOURCE[0]}")/version.sh
 . ${VERSION_SCRIPT}
@@ -19,6 +33,7 @@ if [[ -z "${HOST_TO_DOCKER_SHARED_DIR}" ]]; then
 	HOST_TO_DOCKER_SHARED_DIR=`pwd`
 fi
 
+
 # add as many port mappings required as a single entry or a range
 if [[ -z "$NO_PORT_MAP" ]]; then
 	#PORT_MAPPINGS=" -p 1234-1235:1234-1235 "
@@ -32,7 +47,7 @@ if [[ -z "$DOCKER_TAG" ]]; then
     DOCKER_TAG=" hyp-dev-term:${CURRENT_VER} "
 fi
 
-docker run --privileged -h ${DOCKER_MACHINE_NAME} -it \
+$cmd run --privileged -h ${DOCKER_MACHINE_NAME} -it \
 	${PORT_MAPPINGS} \
 	${ADDITIONAL_DOCKER_ARGS} \
 	-v tools-vol:/usr/local/mnt \

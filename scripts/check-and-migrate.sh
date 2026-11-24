@@ -11,17 +11,18 @@
 
 RENAME_TAG=hyp-dev-term:1.10
 OLD_TAG=hyp:dev-term
+cmd=$1
 
-OLD_TAG_ID=`docker images --format="{{.Repository}}:{{.Tag}} {{.ID}}" | grep "hyp:dev-term" | cut -d " " -f 2`
-NEW_TAG_ID=`docker images --format="{{.Repository}}:{{.Tag}} {{.ID}}" | grep "hyp-dev-term" | cut -d " " -f 2`
+OLD_TAG_ID=`$cmd images --format="{{.Repository}}:{{.Tag}} {{.ID}}" | grep "hyp:dev-term" | cut -d " " -f 2`
+NEW_TAG_ID=`$cmd images --format="{{.Repository}}:{{.Tag}} {{.ID}}" | grep "hyp-dev-term" | cut -d " " -f 2`
 
 # If old tag exists then extract the volumes and discard it
 if [[ ! -z $OLD_TAG_ID ]]; then
     # Tag the old image to newer format
-    docker image tag $OLD_TAG $RENAME_TAG
+    $cmd image tag $OLD_TAG $RENAME_TAG
 
     # Remove old tag
-    docker image rm $OLD_TAG
+    $cmd image rm $OLD_TAG
     echo "Renamed old tag to new format, now the tag for old image is $RENAME_TAG"
 
     echo ""
